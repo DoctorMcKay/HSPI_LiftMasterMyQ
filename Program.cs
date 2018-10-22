@@ -6,7 +6,7 @@ namespace HSPI_LiftMasterMyQ
 	{
 		public static string serverAddress = "127.0.0.1";
 		public static int serverPort = 10400;
-		
+
 		public static void Main(string[] args) {
 			foreach (string arg in args) {
 				string[] parts = arg.Split('=');
