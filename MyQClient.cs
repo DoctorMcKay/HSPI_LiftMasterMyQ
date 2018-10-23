@@ -184,11 +184,11 @@ namespace HSPI_LiftMasterMyQ
 			int attribValue;
 			switch (desiredState) {
 				case MyQDoorState.Closed:
-					attribValue = 0;
+					attribValue = ACTION_CLOSE_DOOR;
 					break;
 				
 				case MyQDoorState.Open:
-					attribValue = 1;
+					attribValue = ACTION_OPEN_DOOR;
 					break;
 				
 				default:
