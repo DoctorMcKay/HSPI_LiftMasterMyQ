@@ -62,7 +62,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 			
 			if (++loginThrottleAttempts >= 3) {
-				LoginThrottledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+				LoginThrottledAt = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 				ClientStatus = STATUS_UNAUTHORIZED;
 				return ClientStatusString = "Login attempts throttled";
 			}
@@ -167,7 +167,7 @@ namespace HSPI_LiftMasterMyQ
 				}
 
 				Devices = devices;
-				DevicesLastUpdated = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+				DevicesLastUpdated = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 			}
 			catch (Exception ex) {
 				Debug.WriteLine(ex.Message);

@@ -30,7 +30,7 @@ namespace HSPI_LiftMasterMyQ
 						break;
 					
 					case "doorstate":
-						DoorState = (MyQDoorState) int.Parse(attrib["Value"]);
+						DoorState = (MyQDoorState) int.Parse((string) attrib["Value"]);
 						break;
 					
 					case "isunattendedopenallowed":
