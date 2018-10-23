@@ -4,15 +4,22 @@ namespace HSPI_LiftMasterMyQ
 {
 	public class Program
 	{
-		public static string serverAddress = "127.0.0.1";
-		public static int serverPort = 10400;
+		private const string DEFAULT_SERVER_ADDRESS = "127.0.0.1";
+		private const int DEFAULT_SERVER_PORT = 10400;
 
 		public static void Main(string[] args) {
+			string serverAddress = DEFAULT_SERVER_ADDRESS;
+			int serverPort = DEFAULT_SERVER_PORT;
+			
 			foreach (string arg in args) {
 				string[] parts = arg.Split('=');
 				switch (parts[0].ToLower()) {
 					case "server":
 						serverAddress = parts[1];
+						break;
+					
+					default:
+						Console.WriteLine("Warning: Unknown command line argument " + parts[0]);
 						break;
 				}
 			}
@@ -45,8 +52,6 @@ namespace HSPI_LiftMasterMyQ
 			catch (Exception ex) {
 				Console.WriteLine("Unhandled exception: " + ex.Message);
 			}
-
-			System.Environment.Exit(0);
 		}
 	}
 }

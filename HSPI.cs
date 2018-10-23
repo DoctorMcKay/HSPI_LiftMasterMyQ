@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Timers;
 using System.Web;
 using System.Web.Script.Serialization;
+using HomeSeerAPI;
 using Scheduler;
 
 namespace HSPI_LiftMasterMyQ
@@ -9,24 +12,44 @@ namespace HSPI_LiftMasterMyQ
 	// ReSharper disable once InconsistentNaming
 	public class HSPI : HspiBase
 	{
+		private MyQClient myqClient;
+		private Timer pollTimer;
+		
 		public HSPI() {
-			this.Name = "LiftMaster MyQ";
-			this.PluginIsFree = true;
+			Name = "LiftMaster MyQ";
+			PluginIsFree = true;
+			
+			myqClient = new MyQClient();
 		}
 
 		public override string InitIO(string port) {
 			Debug.WriteLine("InitIO");
 
-			hs.RegisterPage("LiftMasterMyQSettings", this.Name, this.InstanceFriendlyName());
+			hs.RegisterPage("LiftMasterMyQSettings", Name, InstanceFriendlyName());
 			callbacks.RegisterLink(new HomeSeerAPI.WebPageDesc {
-				plugInName = this.Name,
+				plugInName = Name,
 				link = "LiftMasterMyQSettings",
 				linktext = "Settings",
 				order = 1,
 				page_title = "LiftMaster MyQ Settings",
-				plugInInstance = this.InstanceFriendlyName()
+				plugInInstance = InstanceFriendlyName()
 			});
+
+			var myqUsername = hs.GetINISetting("Authentication", "myq_username", "", IniFilename);
+			var myqPassword = getMyQPassword(false);
+			if (myqUsername.Length > 0 && myqPassword.Length > 0) {
+				myqClient.login(myqUsername, myqPassword).ContinueWith(t => {
+					if (t.Result == "") {
+						// no error occurred
+						syncDevices();
+					}
+				});
+			}
 			
+			pollTimer = new Timer(double.Parse(hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)));
+			pollTimer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
+			// don't enable just yet
+
 			return "";
 		}
 
@@ -106,9 +129,9 @@ namespace HSPI_LiftMasterMyQ
 			sb.Append(PageBuilderAndMenu.clsPageBuilder.FormEnd());
 
 			var savedSettings = new Dictionary<string, string> {
-				{"myq_username", hs.GetINISetting("Authentication", "myq_username", "", this.IniFilename)},
-				{"myq_password", GetMyQPassword(true)},
-				{"myq_poll_frequency", hs.GetINISetting("Options", "myq_poll_frequency", "10000", this.IniFilename)}
+				{"myq_username", hs.GetINISetting("Authentication", "myq_username", "", IniFilename)},
+				{"myq_password", getMyQPassword(true)},
+				{"myq_poll_frequency", hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)}
 			};
 			
 			sb.Append("<script>var myqSavedSettings = ");
@@ -151,7 +174,7 @@ for (var i in myqSavedSettings) {
 					var qs = HttpUtility.ParseQueryString(data);
 					var authCredsChanged = false;
 					foreach (var key in authData) {
-						var oldValue = hs.GetINISetting("MyQ Authentication", key, "", this.IniFilename);
+						var oldValue = hs.GetINISetting("Authentication", key, "", IniFilename);
 						var newValue = qs.Get(key);
 						if (key == "myq_username") {
 							newValue = newValue.Trim();
@@ -166,43 +189,106 @@ for (var i in myqSavedSettings) {
 						var username = qs.Get("myq_username").Trim();
 						var password = qs.Get("myq_password");
 						
-						hs.SaveINISetting("Authentication", "myq_username", username.Trim(), this.IniFilename);
+						hs.SaveINISetting("Authentication", "myq_username", username.Trim(), IniFilename);
 						if (password != "*****") {
 							// This doesn't provide any actual security, but at least the password isn't in
 							// plaintext on the disk. Base64 is juuuuust barely not plaintext, but what're ya
 							// gonna do?
 							var encoded = System.Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
-							hs.SaveINISetting("Authentication", "myq_password", encoded, this.IniFilename);							
+							hs.SaveINISetting("Authentication", "myq_password", encoded, IniFilename);							
 						}
 					}
 
 					var pollFrequency = qs.Get("myq_poll_frequency");
 					int n;
 					if (pollFrequency != null && int.TryParse(pollFrequency, out n) && n >= 5000) {
-						hs.SaveINISetting("Options", "myq_poll_frequency", qs.Get("myq_poll_frequency"), this.IniFilename);
+						hs.SaveINISetting("Options", "myq_poll_frequency", pollFrequency, IniFilename);
+						pollTimer.Interval = n;
 					}
 
 					if (authCredsChanged) {
-						// TODO try authenticating						
+						var authTask = myqClient.login(hs.GetINISetting("Authentication", "myq_username", "", IniFilename),
+							getMyQPassword(false), true);
+						authTask.Wait();
+						if (authTask.Result.Length > 0) {
+							return BuildSettingsPage(user, userRights, "", authTask.Result,
+								"myq_message_box myq_error_message");
+						}
+						else {
+							return BuildSettingsPage(user, userRights, "",
+								"Settings have been saved successfully. Authentication success.",
+								"myq_message_box myq_success_message");
+						}
 					}
 					else {
 						return BuildSettingsPage(user, userRights, "", "Settings have been saved successfully.",
 							"myq_message_box myq_success_message");
 					}
-
-					return "";
 			}
 			
 			return "";
 		}
-		
+
+		public override IPlugInAPI.strInterfaceStatus InterfaceStatus() {
+			// Do we have a password set?
+			if (hs.GetINISetting("Authentication", "myq_username", "", IniFilename).Length == 0 ||
+			    getMyQPassword().Length == 0) {
+				return new IPlugInAPI.strInterfaceStatus {
+					intStatus = IPlugInAPI.enumInterfaceStatus.CRITICAL,
+					sStatus = "Missing MyQ credentials"
+				};
+			}
+
+			switch (myqClient.ClientStatus) {
+				case MyQClient.STATUS_OK:
+					return new IPlugInAPI.strInterfaceStatus {
+						intStatus = IPlugInAPI.enumInterfaceStatus.OK
+					};
+				
+				case MyQClient.STATUS_MYQ_DOWN:
+					return new IPlugInAPI.strInterfaceStatus {
+						intStatus = IPlugInAPI.enumInterfaceStatus.WARNING,
+						sStatus = myqClient.ClientStatusString.Length == 0
+							? "MyQ appears to be down"
+							: myqClient.ClientStatusString
+					};
+				
+				case MyQClient.STATUS_UNAUTHORIZED:
+					return new IPlugInAPI.strInterfaceStatus {
+						intStatus = IPlugInAPI.enumInterfaceStatus.CRITICAL,
+						sStatus = myqClient.ClientStatusString.Length == 0
+							? "MyQ credentials are incorrect"
+							: myqClient.ClientStatusString
+					};
+				
+				default:
+					return new IPlugInAPI.strInterfaceStatus {
+						intStatus = IPlugInAPI.enumInterfaceStatus.INFO,
+						sStatus = "Unknown status " + myqClient.ClientStatus
+					};
+			}
+		}
+
+		private async void syncDevices() {
+			Debug.WriteLine("Syncing MyQ devices");
+			var errorMsg = await myqClient.getDevices();
+			pollTimer.Start(); // enqueue the next poll
+			if (errorMsg != "") {
+				// Something went wrong!
+				Debug.WriteLine("Cannot retrieve device list from MyQ: " + errorMsg);
+				return;
+			}
+
+			Debug.WriteLine("Got list of " + myqClient.Devices.Count + " devices");
+		}
+
 		/// <summary>
 		/// Get the saved MyQ password from INI
 		/// </summary>
 		/// <param name="censor">If true, only return "*****" if a password is saved.</param>
 		/// <returns>string</returns>
-		private string GetMyQPassword(bool censor = true) {
-			var password = hs.GetINISetting("Authentication", "myq_password", "", this.IniFilename);
+		private string getMyQPassword(bool censor = true) {
+			var password = hs.GetINISetting("Authentication", "myq_password", "", IniFilename);
 			Debug.WriteLine("Retrieved password from INI: " + password);
 			
 			if (password.Length == 0) {

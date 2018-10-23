@@ -55,6 +55,9 @@
     <Compile Include="HSPI.cs" />
     <Compile Include="HspiBase.cs" />
     <Compile Include="MyQClient.cs" />
+    <Compile Include="MyQDevice.cs" />
+    <Compile Include="MyQDeviceType.cs" />
+    <Compile Include="MyQDoorState.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

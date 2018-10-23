@@ -3,19 +3,37 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Web.Script.Serialization;
-using Microsoft.CSharp.RuntimeBinder;
 
 namespace HSPI_LiftMasterMyQ
 {
 	public class MyQClient
 	{
+		public const int STATUS_OK = 0;
+		public const int STATUS_MYQ_DOWN = 1;
+		public const int STATUS_UNAUTHORIZED = 2;
+		public int ClientStatus { get; private set; }
+		public string ClientStatusString { get; private set; }
+		public long LoginThrottledAt { get; private set; }
+
+		public List<MyQDevice> Devices;
+		public long DevicesLastUpdated;
+		
 		private const string BASE_URL = "https://myqexternal.myqdevice.com";
+
+		private const int ACTION_CLOSE_DOOR = 0;
+		private const int ACTION_OPEN_DOOR = 1;
 		
 		private readonly HttpClient httpClient;
 		private readonly JavaScriptSerializer jsonSerializer;
 
-		public string authToken = null;
+		private string username;
+		private string password;
+		private string authToken = null;
+
+		private int loginThrottleAttempts = 0;
+		private Timer loginThrottle;
 
 		public MyQClient() {
 			httpClient = new HttpClient();
@@ -23,6 +41,11 @@ namespace HSPI_LiftMasterMyQ
 			httpClient.DefaultRequestHeaders.Add("MyQApplicationId", "NWknvuBd7LoFHfXmKNMBcgajXtZEgKUh4V7WNzMidrpUUluDpVYVZx+xT4PCM5Kx");
 			
 			jsonSerializer = new JavaScriptSerializer();
+			
+			ClientStatus = STATUS_OK;
+
+			loginThrottle = new Timer(2000);
+			loginThrottle.Elapsed += (Object source, ElapsedEventArgs a) => { loginThrottleAttempts = 0; };
 		}
 
 		/// <summary>
@@ -30,8 +53,25 @@ namespace HSPI_LiftMasterMyQ
 		/// </summary>
 		/// <param name="username"></param>
 		/// <param name="password"></param>
+		/// <param name="overrideThrottle"></param>
 		/// <returns>string</returns>
-		public async Task<string> login(string username, string password) {
+		public async Task<string> login(string username, string password, bool overrideThrottle = false) {
+			if (overrideThrottle) {
+				loginThrottleAttempts = 0;
+				loginThrottle.Stop();
+			}
+			
+			if (++loginThrottleAttempts >= 3) {
+				LoginThrottledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+				ClientStatus = STATUS_UNAUTHORIZED;
+				return ClientStatusString = "Login attempts throttled";
+			}
+			
+			loginThrottle.Start();
+			
+			this.username = username;
+			this.password = password;
+
 			var body = new Dictionary<string, string> {
 				{"username", username},
 				{"password", password}
@@ -44,11 +84,11 @@ namespace HSPI_LiftMasterMyQ
 			HttpResponseMessage res = await httpClient.SendAsync(req);
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
-				return "Got failure response code from MyQ: " + res.StatusCode;
+				ClientStatus = STATUS_MYQ_DOWN;
+				return ClientStatusString = "Got failure response code from MyQ: " + res.StatusCode;
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
-			Debug.WriteLine(responseString);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
@@ -57,27 +97,87 @@ namespace HSPI_LiftMasterMyQ
 				int returnCode = int.Parse(content["ReturnCode"]);
 				switch (returnCode) {
 					case 203:
-						return "MyQ username and/or password were incorrect.";
+						ClientStatus = STATUS_UNAUTHORIZED;
+						return ClientStatusString = "MyQ username and/or password were incorrect.";
 
 					case 205:
-						return "MyQ username and/or password were incorrect. 1 attempt left before lockout.";
+						ClientStatus = STATUS_UNAUTHORIZED;
+						return ClientStatusString = "MyQ username and/or password were incorrect. 1 attempt left before lockout.";
 
 					case 207:
-						return "MyQ account is locked out. Please reset password.";
+						ClientStatus = STATUS_UNAUTHORIZED;
+						return ClientStatusString = "MyQ account is locked out. Please reset password.";
 				}
-
 				authToken = content["SecurityToken"];
 				httpClient.DefaultRequestHeaders.Add("SecurityToken", authToken);
+				ClientStatus = STATUS_OK;
+				Debug.WriteLine("Logged in with auth token " + authToken);
 
 				return "";
 			}
-			catch (RuntimeBinderException ex) {
-				return "MyQ service is temporarily unavailable. " + ex.Message;
+			catch (Exception ex) {
+				ClientStatus = STATUS_MYQ_DOWN;
+				return ClientStatusString = "MyQ service is temporarily unavailable. " + ex.Message;
 			}
 		}
 
 		public async Task<string> getDevices() {
+			Debug.WriteLine("Requesting list of devices from MyQ");
+			HttpResponseMessage res = await httpClient.GetAsync("/api/v4/userdevicedetails/get");
+			if (!res.IsSuccessStatusCode) {
+				res.Dispose();
+				ClientStatus = STATUS_MYQ_DOWN;
+				return ClientStatusString = "Got failure response code from MyQ device list: " + res.StatusCode;
+			}
+
+			var responseString = await res.Content.ReadAsStringAsync();
+			Debug.WriteLine(responseString);
+			dynamic content = jsonSerializer.DeserializeObject(responseString);
+			res.Dispose();
+
+			var devices = new List<MyQDevice>();
+			var allowedDeviceTypes = new[] {
+				MyQDeviceType.GDO,
+				MyQDeviceType.Gate,
+				MyQDeviceType.VGDO_GarageDoor,
+				MyQDeviceType.CommercialDoorOperator,
+				MyQDeviceType.WGDO_GarageDoor
+			};
+
+			try {
+				int returnCode = int.Parse(content["ReturnCode"]);
+				switch (returnCode) {
+					case -3333:
+						// Not logged in
+						var errorMsg = await login(username, password);
+						if (errorMsg != "") {
+							return errorMsg;
+						}
+						else {
+							return await getDevices(); // try again!
+						}
+				}
+				
+				foreach (var deviceInfo in content["Devices"]) {
+					if (Array.IndexOf(allowedDeviceTypes, (MyQDeviceType) deviceInfo["MyQDeviceTypeId"]) == -1) {
+						continue; // not a GDO
+					}
+
+					devices.Add(new MyQDevice(deviceInfo));
+				}
+
+				Devices = devices;
+				DevicesLastUpdated = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+			}
+			catch (Exception ex) {
+				Debug.WriteLine(ex.Message);
+				Debug.WriteLine(ex.StackTrace);
+				
+				ClientStatus = STATUS_MYQ_DOWN;
+				return ClientStatusString = "MyQ service is temporarily unavailable. " + ex.Message;
+			}
 			
+			return "";
 		}
 	}
 }
