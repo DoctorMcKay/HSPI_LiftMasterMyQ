@@ -36,6 +36,12 @@ immediately and automatically.
 If you delete a device from your MyQ account, you will need to manually delete its associated device in HS3. If you
 delete a device from HS3 but not from MyQ, it will be re-created automatically the next time the plugin starts.
 
+# Updating Your MyQ Password
+
+If you change your MyQ password, you will need to update it on the plugin's settings page. Once a password is submitted
+and saved, the password box will be pre-filled with "*****". To update your MyQ password in the plugin, clear the
+password box completely then enter your new password.
+
 # Software Support
 
 This plugin is tested and works under:
