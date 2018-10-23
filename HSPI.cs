@@ -16,7 +16,7 @@ namespace HSPI_LiftMasterMyQ
 		private MyQClient myqClient;
 		private Timer pollTimer;
 		private Dictionary<string, int> serialToRef;
-		private Dictionary<string, int> serialToMyqId;
+		private Dictionary<int, int> refToMyqId;
 		
 		public HSPI() {
 			Name = "LiftMaster MyQ";
@@ -24,7 +24,7 @@ namespace HSPI_LiftMasterMyQ
 			
 			myqClient = new MyQClient();
 			serialToRef = new Dictionary<string, int>();
-			serialToMyqId = new Dictionary<string, int>();
+			refToMyqId = new Dictionary<int, int>();
 		}
 
 		public override string InitIO(string port) {
@@ -61,7 +61,16 @@ namespace HSPI_LiftMasterMyQ
 		public override void SetIOMulti(List<CAPI.CAPIControl> colSend) {
 			foreach (var upd in colSend) {
 				Debug.WriteLine("Ref " + upd.Ref + " set to " + upd.ControlValue);
-				hs.SetDeviceValueByRef(upd.Ref, upd.ControlValue, true);
+				int myqId;
+				if (!refToMyqId.TryGetValue(upd.Ref, out myqId)) {
+					Debug.WriteLine("No MyQ ID for ref " + upd.Ref + "!!"); // TODO log this
+					continue;
+				}
+
+				myqClient.moveDoor(myqId, (MyQDoorState) upd.ControlValue).ContinueWith(t => {
+					Debug.WriteLine("Move door command completed" + (t.Result.Length > 0 ? " with error: " + t.Result : ""));
+					syncDevices();
+				});
 			}
 		}
 
@@ -294,15 +303,6 @@ for (var i in myqSavedSettings) {
 
 			Debug.WriteLine("Got list of " + myqClient.Devices.Count + " devices");
 			foreach (MyQDevice dev in myqClient.Devices) {
-				int devIdTry;
-				if (!serialToMyqId.TryGetValue(dev.DeviceSerialNumber, out devIdTry) || devIdTry != dev.DeviceId) {
-					if (devIdTry != dev.DeviceId) {
-						serialToMyqId.Remove(dev.DeviceSerialNumber);
-					}
-					
-					serialToMyqId.Add(dev.DeviceSerialNumber, dev.DeviceId);
-				}
-				
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
 					// We need to look it up in HS3, and maybe create the device
@@ -398,6 +398,15 @@ for (var i in myqSavedSettings) {
 				if (devRef == 0) {
 					Debug.WriteLine("Somehow we still ended up with devRef == 0 for door " + dev.DeviceSerialNumber);
 					continue;
+				}
+				
+				int devIdTry;
+				if (!refToMyqId.TryGetValue(devRef, out devIdTry) || devIdTry != dev.DeviceId) {
+					if (devIdTry != dev.DeviceId) {
+						refToMyqId.Remove(devRef);
+					}
+					
+					refToMyqId.Add(devRef, dev.DeviceId);
 				}
 
 				if (hs.DeviceValue(devRef) != (int) dev.DoorState) {

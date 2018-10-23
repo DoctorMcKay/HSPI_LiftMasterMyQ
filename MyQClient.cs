@@ -179,5 +179,40 @@ namespace HSPI_LiftMasterMyQ
 			
 			return "";
 		}
+
+		public async Task<string> moveDoor(int myqId, MyQDoorState desiredState) {
+			int attribValue;
+			switch (desiredState) {
+				case MyQDoorState.Closed:
+					attribValue = 0;
+					break;
+				
+				case MyQDoorState.Open:
+					attribValue = 1;
+					break;
+				
+				default:
+					return "Bad desired state " + desiredState;
+			}
+
+			// The myqId value actually needs to be an int so our string,string dictionary won't work here
+			// I'm tired so let's just do this
+			var json = "{\"MyQDeviceId\":" + myqId + ",\"AttributeName\":\"desireddoorstate\",\"AttributeValue\":\"" +
+			           attribValue + "\"}";
+			var req = new HttpRequestMessage(HttpMethod.Put, "/api/v4/deviceattribute/putdeviceattribute");
+			req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+			Debug.WriteLine("Writing door state " + attribValue + " for door id " + myqId);
+			HttpResponseMessage res = await httpClient.SendAsync(req);
+			if (!res.IsSuccessStatusCode) {
+				res.Dispose();
+				ClientStatus = STATUS_MYQ_DOWN;
+				return ClientStatusString = "Got failure response code from MyQ: " + res.StatusCode;
+			}
+			
+			// Someday we should probably handle the response, but not this day
+			res.Dispose();
+			return "";
+		}
 	}
 }
