@@ -59,7 +59,7 @@ namespace HSPI_LiftMasterMyQ
 		#region Convenience properties
 
 		protected string IniFilename {
-			get { return this.Name = ".ini"; }
+			get { return this.Name + ".ini"; }
 		}
 		
 		#endregion

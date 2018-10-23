@@ -16,6 +16,7 @@ namespace HSPI_LiftMasterMyQ
 		private MyQClient myqClient;
 		private Timer pollTimer;
 		private Dictionary<string, int> serialToRef;
+		private Dictionary<string, int> serialToMyqId;
 		
 		public HSPI() {
 			Name = "LiftMaster MyQ";
@@ -23,6 +24,7 @@ namespace HSPI_LiftMasterMyQ
 			
 			myqClient = new MyQClient();
 			serialToRef = new Dictionary<string, int>();
+			serialToMyqId = new Dictionary<string, int>();
 		}
 
 		public override string InitIO(string port) {
@@ -37,7 +39,7 @@ namespace HSPI_LiftMasterMyQ
 				page_title = "LiftMaster MyQ Settings",
 				plugInInstance = InstanceFriendlyName()
 			});
-
+			
 			var myqUsername = hs.GetINISetting("Authentication", "myq_username", "", IniFilename);
 			var myqPassword = getMyQPassword(false);
 			if (myqUsername.Length > 0 && myqPassword.Length > 0) {
@@ -225,6 +227,7 @@ for (var i in myqSavedSettings) {
 								"myq_message_box myq_error_message");
 						}
 						else {
+							syncDevices();
 							return buildSettingsPage(user, userRights, "",
 								"Settings have been saved successfully. Authentication success.",
 								"myq_message_box myq_success_message");
@@ -291,6 +294,15 @@ for (var i in myqSavedSettings) {
 
 			Debug.WriteLine("Got list of " + myqClient.Devices.Count + " devices");
 			foreach (MyQDevice dev in myqClient.Devices) {
+				int devIdTry;
+				if (!serialToMyqId.TryGetValue(dev.DeviceSerialNumber, out devIdTry) || devIdTry != dev.DeviceId) {
+					if (devIdTry != dev.DeviceId) {
+						serialToMyqId.Remove(dev.DeviceSerialNumber);
+					}
+					
+					serialToMyqId.Add(dev.DeviceSerialNumber, dev.DeviceId);
+				}
+				
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
 					// We need to look it up in HS3, and maybe create the device
@@ -378,6 +390,8 @@ for (var i in myqSavedSettings) {
 								Graphic = MyQDevice.GetDeviceStatusImage(state)
 							});
 						}
+						
+						hsDev.MISC_Set(hs, Enums.dvMISC.SHOW_VALUES);
 					}
 				}
 
