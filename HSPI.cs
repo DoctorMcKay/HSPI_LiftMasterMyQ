@@ -6,6 +6,7 @@ using System.Web;
 using System.Web.Script.Serialization;
 using HomeSeerAPI;
 using Scheduler;
+using Scheduler.Classes;
 
 namespace HSPI_LiftMasterMyQ
 {
@@ -14,12 +15,14 @@ namespace HSPI_LiftMasterMyQ
 	{
 		private MyQClient myqClient;
 		private Timer pollTimer;
+		private Dictionary<string, int> serialToRef;
 		
 		public HSPI() {
 			Name = "LiftMaster MyQ";
 			PluginIsFree = true;
 			
 			myqClient = new MyQClient();
+			serialToRef = new Dictionary<string, int>();
 		}
 
 		public override string InitIO(string port) {
@@ -53,18 +56,25 @@ namespace HSPI_LiftMasterMyQ
 			return "";
 		}
 
+		public override void SetIOMulti(List<CAPI.CAPIControl> colSend) {
+			foreach (var upd in colSend) {
+				Debug.WriteLine("Ref " + upd.Ref + " set to " + upd.ControlValue);
+				hs.SetDeviceValueByRef(upd.Ref, upd.ControlValue, true);
+			}
+		}
+
 		public override string GetPagePlugin(string pageName, string user, int userRights, string queryString) {
 			Debug.WriteLine("Requested page name " + pageName + " by user " + user + " with rights " + userRights);
 
 			switch (pageName) {
 				case "LiftMasterMyQSettings":
-					return BuildSettingsPage(user, userRights, queryString);
+					return buildSettingsPage(user, userRights, queryString);
 			}
 
 			return "";
 		}
 
-		private string BuildSettingsPage(string user, int userRights, string queryString,
+		private string buildSettingsPage(string user, int userRights, string queryString,
 			string messageBox = null, string messageBoxClass = null) {
 			
 			var sb = new StringBuilder();
@@ -162,7 +172,7 @@ for (var i in myqSavedSettings) {
 				case "LiftMasterMyQSettings":
 					if ((userRights & 2) != 2) {
 						// User is not an admin
-						return BuildSettingsPage(user, userRights, "",
+						return buildSettingsPage(user, userRights, "",
 							"Access denied: You are not an administrative user", "myq_message_box myq_error_message");
 					}
 
@@ -194,7 +204,7 @@ for (var i in myqSavedSettings) {
 							// This doesn't provide any actual security, but at least the password isn't in
 							// plaintext on the disk. Base64 is juuuuust barely not plaintext, but what're ya
 							// gonna do?
-							var encoded = System.Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
+							var encoded = System.Convert.ToBase64String(Encoding.UTF8.GetBytes((string) password));
 							hs.SaveINISetting("Authentication", "myq_password", encoded, IniFilename);							
 						}
 					}
@@ -211,17 +221,17 @@ for (var i in myqSavedSettings) {
 							getMyQPassword(false), true);
 						authTask.Wait();
 						if (authTask.Result.Length > 0) {
-							return BuildSettingsPage(user, userRights, "", authTask.Result,
+							return buildSettingsPage(user, userRights, "", authTask.Result,
 								"myq_message_box myq_error_message");
 						}
 						else {
-							return BuildSettingsPage(user, userRights, "",
+							return buildSettingsPage(user, userRights, "",
 								"Settings have been saved successfully. Authentication success.",
 								"myq_message_box myq_success_message");
 						}
 					}
 					else {
-						return BuildSettingsPage(user, userRights, "", "Settings have been saved successfully.",
+						return buildSettingsPage(user, userRights, "", "Settings have been saved successfully.",
 							"myq_message_box myq_success_message");
 					}
 			}
@@ -280,6 +290,106 @@ for (var i in myqSavedSettings) {
 			}
 
 			Debug.WriteLine("Got list of " + myqClient.Devices.Count + " devices");
+			foreach (MyQDevice dev in myqClient.Devices) {
+				int devRef = 0;
+				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
+					// We need to look it up in HS3, and maybe create the device
+					var enumerator = (clsDeviceEnumeration) hs.GetDeviceEnumerator();
+					do {
+						DeviceClass enumDev = enumerator.GetNext();
+						if (enumDev == null) {
+							break;
+						}
+
+						if (enumDev.get_Address(hs).Split('-')[0] == dev.DeviceSerialNumber && enumDev.get_Interface(hs) == Name) {
+							// found it!
+							devRef = enumDev.get_Ref(hs);
+							Debug.WriteLine("Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
+							serialToRef.Add(dev.DeviceSerialNumber, devRef);
+							break;
+						}
+					} while (!enumerator.Finished);
+					
+					if (devRef == 0) {
+						Debug.WriteLine("Creating new device in HS3 for GDO serial " + dev.DeviceSerialNumber);
+						
+						// Didn't find an existing device; create one
+						devRef = hs.NewDeviceRef(dev.DeviceTypeName);
+						var hsDev = (DeviceClass) hs.GetDeviceByRef(devRef);
+						hsDev.set_Address(hs, dev.DeviceSerialNumber);
+						hsDev.set_Interface(hs, Name);
+						hsDev.set_InterfaceInstance(hs, InstanceFriendlyName());
+						hsDev.set_Device_Type_String(hs, "LiftMaster MyQ Garage Door Opener");
+						hsDev.set_DeviceType_Set(hs, new DeviceTypeInfo_m.DeviceTypeInfo {
+							Device_API = DeviceTypeInfo_m.DeviceTypeInfo.eDeviceAPI.Plug_In
+						});
+						
+						// Create buttons
+						VSVGPairs.VSPair openBtn = new VSVGPairs.VSPair(ePairStatusControl.Both);
+						openBtn.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						openBtn.Render = Enums.CAPIControlType.Button;
+						openBtn.Status = "Open";
+						openBtn.Value = (int) MyQDoorState.Open;
+
+						VSVGPairs.VSPair closeBtn = new VSVGPairs.VSPair(ePairStatusControl.Control);
+						closeBtn.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						closeBtn.Render = Enums.CAPIControlType.Button;
+						closeBtn.Status = "Close";
+						closeBtn.Value = (int) MyQDoorState.Closed;
+						
+						VSVGPairs.VSPair closedStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
+						closedStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						closedStatus.Status = "Closed";
+						closedStatus.Value = (int) MyQDoorState.Closed;
+						
+						VSVGPairs.VSPair openingStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
+						openingStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						openingStatus.Status = "Opening";
+						openingStatus.Value = (int) MyQDoorState.GoingUp;
+
+						VSVGPairs.VSPair closingStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
+						closingStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						closingStatus.Status = "Closing";
+						closingStatus.Value = (int) MyQDoorState.GoingDown;
+						
+						VSVGPairs.VSPair stoppedStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
+						stoppedStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						stoppedStatus.Status = "Stopped";
+						stoppedStatus.Value = (int) MyQDoorState.Stopped;
+						
+						VSVGPairs.VSPair notClosedStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
+						notClosedStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
+						notClosedStatus.Status = "Not Closed";
+						notClosedStatus.Value = (int) MyQDoorState.NotClosed;
+
+						hs.DeviceVSP_AddPair(devRef, openBtn);
+						hs.DeviceVSP_AddPair(devRef, closeBtn);
+						hs.DeviceVSP_AddPair(devRef, closedStatus);
+						hs.DeviceVSP_AddPair(devRef, openingStatus);
+						hs.DeviceVSP_AddPair(devRef, closingStatus);
+						hs.DeviceVSP_AddPair(devRef, stoppedStatus);
+						hs.DeviceVSP_AddPair(devRef, notClosedStatus);
+						
+						// Status images
+						foreach (var state in (MyQDoorState[]) Enum.GetValues(typeof(MyQDoorState))) {
+							hs.DeviceVGP_AddPair(devRef, new VSVGPairs.VGPair {
+								PairType = VSVGPairs.VSVGPairType.SingleValue,
+								Set_Value = (int) state,
+								Graphic = MyQDevice.GetDeviceStatusImage(state)
+							});
+						}
+					}
+				}
+
+				if (devRef == 0) {
+					Debug.WriteLine("Somehow we still ended up with devRef == 0 for door " + dev.DeviceSerialNumber);
+					continue;
+				}
+
+				if (hs.DeviceValue(devRef) != (int) dev.DoorState) {
+					hs.SetDeviceValueByRef(devRef, (int) dev.DoorState, true);
+				}
+			}
 		}
 
 		/// <summary>

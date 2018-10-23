@@ -43,5 +43,30 @@ namespace HSPI_LiftMasterMyQ
 				}
 			}
 		}
+
+		public static string GetDeviceStatusImage(MyQDoorState state) {
+			switch (state) {
+				case MyQDoorState.Closed:
+					return "/images/HomeSeer/status/Garage-Closed.png";
+				
+				case MyQDoorState.Open:
+					return "/images/HomeSeer/status/Garage-Open.png";
+				
+				case MyQDoorState.GoingDown:
+					return "/images/HomeSeer/status/Garage-Closing.png";
+				
+				case MyQDoorState.GoingUp:
+					return "/images/HomeSeer/status/Garage-Opening.png";
+				
+				case MyQDoorState.Stopped:
+					return "/images/HomeSeer/status/Garage-Stopped.png";
+				
+				case MyQDoorState.NotClosed:
+					return "/images/HomeSeer/status/Garage-Partial.png";
+				
+				default:
+					return "/images/HomeSeer/status/Garage-Unknown3.png";
+			}
+		}
 	}
 }
