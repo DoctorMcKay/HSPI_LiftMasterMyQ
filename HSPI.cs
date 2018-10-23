@@ -31,14 +31,16 @@ namespace HSPI_LiftMasterMyQ
 			Debug.WriteLine("InitIO");
 
 			hs.RegisterPage("LiftMasterMyQSettings", Name, InstanceFriendlyName());
-			callbacks.RegisterLink(new HomeSeerAPI.WebPageDesc {
+			var configLink = new HomeSeerAPI.WebPageDesc {
 				plugInName = Name,
 				link = "LiftMasterMyQSettings",
 				linktext = "Settings",
 				order = 1,
 				page_title = "LiftMaster MyQ Settings",
 				plugInInstance = InstanceFriendlyName()
-			});
+			};
+			callbacks.RegisterConfigLink(configLink);
+			callbacks.RegisterLink(configLink);
 			
 			var myqUsername = hs.GetINISetting("Authentication", "myq_username", "", IniFilename);
 			var myqPassword = getMyQPassword(false);
