@@ -53,6 +53,7 @@ namespace HSPI_LiftMasterMyQ
 			
 			pollTimer = new Timer(double.Parse(hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)));
 			pollTimer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
+			pollTimer.AutoReset = false;
 			// don't enable just yet
 
 			return "";
@@ -69,7 +70,11 @@ namespace HSPI_LiftMasterMyQ
 
 				myqClient.moveDoor(myqId, (MyQDoorState) upd.ControlValue).ContinueWith(t => {
 					Debug.WriteLine("Move door command completed" + (t.Result.Length > 0 ? " with error: " + t.Result : ""));
-					syncDevices();
+
+					Timer timer = new Timer(1000);
+					timer.AutoReset = false;
+					timer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
+					timer.Start();
 				});
 			}
 		}
