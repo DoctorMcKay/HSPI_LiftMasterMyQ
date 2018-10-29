@@ -13,10 +13,10 @@ namespace HSPI_LiftMasterMyQ
 	// ReSharper disable once InconsistentNaming
 	public class HSPI : HspiBase
 	{
-		private MyQClient myqClient;
+		private readonly MyQClient myqClient;
 		private Timer pollTimer;
-		private Dictionary<string, int> serialToRef;
-		private Dictionary<int, int> refToMyqId;
+		private readonly Dictionary<string, int> serialToRef;
+		private readonly Dictionary<int, int> refToMyqId;
 		
 		public HSPI() {
 			Name = "LiftMaster MyQ";
