@@ -122,7 +122,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public async Task<string> getDevices() {
-			Program.WriteLog("Debug", "Requesting list of devices from MyQ");
+			Program.WriteLog("Silly", "Requesting list of devices from MyQ");
 			HttpResponseMessage res = await httpClient.GetAsync("/api/v4/userdevicedetails/get");
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
@@ -131,7 +131,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
-			Debug.WriteLine(responseString, true);
+			Debug.WriteToConsole(responseString);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
@@ -171,7 +171,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 			catch (Exception ex) {
 				Program.WriteLog("Error", ex.Message);
-				Debug.WriteLine(ex.StackTrace, true);
+				Debug.WriteToConsole(ex.StackTrace);
 				
 				ClientStatus = STATUS_MYQ_DOWN;
 				return ClientStatusString = "MyQ service is temporarily unavailable. " + ex.Message;

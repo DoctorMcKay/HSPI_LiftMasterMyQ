@@ -59,9 +59,19 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public static void WriteLog(string type, string message, [CallerLineNumber] int lineNumber = 0, [CallerMemberName] string caller = null) {
-			type = "MyQ" + type;
-			HsClient.WriteLog(type, "[" + caller + ":" + lineNumber + "] " + message);
+#if DEBUG
+			bool isDebugging = true;
+#else
+			bool isDebugging = false;
+#endif
 			
+			type = "MyQ" + type;
+
+			// Don't log Silly type messages to the log unless this is a debug build
+			if (isDebugging || type != "MyQSilly") {
+				HsClient.WriteLog(type, "[" + caller + ":" + lineNumber + "] " + message);
+			}
+
 #if DEBUG
 			if (type != "MyQDebug") {
 				// MyQDebug messages are printed to console by the Debug class

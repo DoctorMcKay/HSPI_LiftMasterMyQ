@@ -4,15 +4,10 @@ namespace HSPI_LiftMasterMyQ
 {
 	public class Debug
 	{
-		public static void WriteLine(string line, bool suppressLog = false, [CallerLineNumber] int lineNumber = 0, [CallerMemberName] string caller = null) {
+		public static void WriteToConsole(string line, [CallerLineNumber] int lineNumber = 0, [CallerMemberName] string caller = null) {
 #if DEBUG
-			System.Console.WriteLine(line);
+			System.Console.WriteLine("[" + caller + ":" + lineNumber + "] " + line);
 #endif
-
-			if (!suppressLog) {
-				// ReSharper disable once ExplicitCallerInfoArgument
-				Program.WriteLog("Debug", line, lineNumber, caller);
-			}
 		}
 	}
 }

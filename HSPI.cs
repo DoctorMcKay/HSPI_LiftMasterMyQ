@@ -28,7 +28,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public override string InitIO(string port) {
-			Debug.WriteLine("InitIO");
+			Debug.WriteToConsole("InitIO");
 
 			hs.RegisterPage("LiftMasterMyQSettings", Name, InstanceFriendlyName());
 			var configLink = new HomeSeerAPI.WebPageDesc {
@@ -185,7 +185,7 @@ for (var i in myqSavedSettings) {
 		}
 
 		public override string PostBackProc(string pageName, string data, string user, int userRights) {
-			Debug.WriteLine("PostBackProc for page " + pageName + " with data " + data + " by user " + user + " with rights " + userRights);
+			Program.WriteLog("Debug", "PostBackProc for page " + pageName + " with data " + data + " by user " + user + " with rights " + userRights);
 			switch (pageName) {
 				case "LiftMasterMyQSettings":
 					if ((userRights & 2) != 2) {
@@ -299,7 +299,7 @@ for (var i in myqSavedSettings) {
 		}
 
 		private async void syncDevices() {
-			Program.WriteLog("Debug", "Syncing MyQ devices");
+			Program.WriteLog("Silly", "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
@@ -308,7 +308,7 @@ for (var i in myqSavedSettings) {
 				return;
 			}
 
-			Program.WriteLog("Debug", "Got list of " + myqClient.Devices.Count + " devices");
+			Program.WriteLog("Silly", "Got list of " + myqClient.Devices.Count + " devices");
 			foreach (MyQDevice dev in myqClient.Devices) {
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
@@ -429,7 +429,6 @@ for (var i in myqSavedSettings) {
 		/// <returns>string</returns>
 		private string getMyQPassword(bool censor = true) {
 			var password = hs.GetINISetting("Authentication", "myq_password", "", IniFilename);
-			//Debug.WriteLine("Retrieved password from INI: " + password);
 			
 			if (password.Length == 0) {
 				return password;
@@ -437,7 +436,6 @@ for (var i in myqSavedSettings) {
 				return "*****";
 			} else {
 				var decoded = Encoding.UTF8.GetString(System.Convert.FromBase64String(password));
-				//Debug.WriteLine("Decoded base64 password: " + decoded);
 				return decoded;
 			}
 		}
