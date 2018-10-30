@@ -1,4 +1,6 @@
 using System;
+using System.Dynamic;
+using System.Runtime.CompilerServices;
 
 namespace HSPI_LiftMasterMyQ
 {
@@ -6,6 +8,8 @@ namespace HSPI_LiftMasterMyQ
 	{
 		private const string DEFAULT_SERVER_ADDRESS = "127.0.0.1";
 		private const int DEFAULT_SERVER_PORT = 10400;
+
+		public static HomeSeerAPI.IHSApplication HsClient;
 
 		public static void Main(string[] args) {
 			string serverAddress = DEFAULT_SERVER_ADDRESS;
@@ -52,6 +56,18 @@ namespace HSPI_LiftMasterMyQ
 			catch (Exception ex) {
 				Console.WriteLine("Unhandled exception: " + ex.Message);
 			}
+		}
+
+		public static void WriteLog(string type, string message, [CallerLineNumber] int lineNumber = 0, [CallerMemberName] string caller = null) {
+			type = "MyQ" + type;
+			HsClient.WriteLog(type, "[" + caller + ":" + lineNumber + "] " + message);
+			
+#if DEBUG
+			if (type != "MyQDebug") {
+				// MyQDebug messages are printed to console by the Debug class
+				System.Console.WriteLine("[" + type + "] " + message);
+			}
+#endif
 		}
 	}
 }

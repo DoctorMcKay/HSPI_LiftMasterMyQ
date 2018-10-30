@@ -510,6 +510,7 @@ namespace HSPI_LiftMasterMyQ
 			hsClient.Connect();
 
 			hs = hsClient.ServiceProxy;
+			Program.HsClient = hs;
 			// make sure we're connected successfully
 			double apiVersion = hs.APIVersion;
 

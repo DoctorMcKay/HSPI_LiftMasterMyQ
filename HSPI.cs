@@ -63,15 +63,15 @@ namespace HSPI_LiftMasterMyQ
 
 		public override void SetIOMulti(List<CAPI.CAPIControl> colSend) {
 			foreach (var upd in colSend) {
-				Debug.WriteLine("Ref " + upd.Ref + " set to " + upd.ControlValue);
+				Program.WriteLog("Debug", "Ref " + upd.Ref + " set to " + upd.ControlValue);
 				int myqId;
 				if (!refToMyqId.TryGetValue(upd.Ref, out myqId)) {
-					Debug.WriteLine("No MyQ ID for ref " + upd.Ref + "!!"); // TODO log this
+					Program.WriteLog("Warn", "No MyQ ID for ref " + upd.Ref + "!!");
 					continue;
 				}
 
 				myqClient.moveDoor(myqId, (MyQDoorState) upd.ControlValue).ContinueWith(t => {
-					Debug.WriteLine("Move door command completed" + (t.Result.Length > 0 ? " with error: " + t.Result : ""));
+					Program.WriteLog("Debug", "Move door command completed" + (t.Result.Length > 0 ? " with error: " + t.Result : ""));
 
 					Timer timer = new Timer(1000);
 					timer.AutoReset = false;
@@ -82,7 +82,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public override string GetPagePlugin(string pageName, string user, int userRights, string queryString) {
-			Debug.WriteLine("Requested page name " + pageName + " by user " + user + " with rights " + userRights);
+			Program.WriteLog("Debug", "Requested page name " + pageName + " by user " + user + " with rights " + userRights);
 
 			switch (pageName) {
 				case "LiftMasterMyQSettings":
@@ -299,16 +299,16 @@ for (var i in myqSavedSettings) {
 		}
 
 		private async void syncDevices() {
-			Debug.WriteLine("Syncing MyQ devices");
+			Program.WriteLog("Debug", "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
 				// Something went wrong!
-				Debug.WriteLine("Cannot retrieve device list from MyQ: " + errorMsg);
+				Program.WriteLog("Warn", "Cannot retrieve device list from MyQ: " + errorMsg);
 				return;
 			}
 
-			Debug.WriteLine("Got list of " + myqClient.Devices.Count + " devices");
+			Program.WriteLog("Debug", "Got list of " + myqClient.Devices.Count + " devices");
 			foreach (MyQDevice dev in myqClient.Devices) {
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
@@ -323,14 +323,14 @@ for (var i in myqSavedSettings) {
 						if (enumDev.get_Address(hs).Split('-')[0] == dev.DeviceSerialNumber && enumDev.get_Interface(hs) == Name) {
 							// found it!
 							devRef = enumDev.get_Ref(hs);
-							Debug.WriteLine("Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
+							Program.WriteLog("Debug", "Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
 							serialToRef.Add(dev.DeviceSerialNumber, devRef);
 							break;
 						}
 					} while (!enumerator.Finished);
 					
 					if (devRef == 0) {
-						Debug.WriteLine("Creating new device in HS3 for GDO serial " + dev.DeviceSerialNumber);
+						Program.WriteLog("Debug", "Creating new device in HS3 for GDO serial " + dev.DeviceSerialNumber);
 						
 						// Didn't find an existing device; create one
 						devRef = hs.NewDeviceRef(dev.DeviceTypeName);
@@ -403,7 +403,7 @@ for (var i in myqSavedSettings) {
 				}
 
 				if (devRef == 0) {
-					Debug.WriteLine("Somehow we still ended up with devRef == 0 for door " + dev.DeviceSerialNumber);
+					Program.WriteLog("Warn", "Somehow we still ended up with devRef == 0 for door " + dev.DeviceSerialNumber);
 					continue;
 				}
 				
@@ -429,7 +429,7 @@ for (var i in myqSavedSettings) {
 		/// <returns>string</returns>
 		private string getMyQPassword(bool censor = true) {
 			var password = hs.GetINISetting("Authentication", "myq_password", "", IniFilename);
-			Debug.WriteLine("Retrieved password from INI: " + password);
+			//Debug.WriteLine("Retrieved password from INI: " + password);
 			
 			if (password.Length == 0) {
 				return password;
@@ -437,7 +437,7 @@ for (var i in myqSavedSettings) {
 				return "*****";
 			} else {
 				var decoded = Encoding.UTF8.GetString(System.Convert.FromBase64String(password));
-				Debug.WriteLine("Decoded base64 password: " + decoded);
+				//Debug.WriteLine("Decoded base64 password: " + decoded);
 				return decoded;
 			}
 		}

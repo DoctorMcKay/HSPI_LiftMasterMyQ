@@ -80,7 +80,7 @@ namespace HSPI_LiftMasterMyQ
 			var req = new HttpRequestMessage(HttpMethod.Post, "/api/v4/User/Validate");
 			req.Content = new StringContent(jsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
-			Debug.WriteLine("Logging into MyQ");
+			Program.WriteLog("Debug", "Logging into MyQ");
 			HttpResponseMessage res = await httpClient.SendAsync(req);
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
@@ -111,7 +111,7 @@ namespace HSPI_LiftMasterMyQ
 				authToken = content["SecurityToken"];
 				httpClient.DefaultRequestHeaders.Add("SecurityToken", authToken);
 				ClientStatus = STATUS_OK;
-				Debug.WriteLine("Logged in with auth token " + authToken);
+				Program.WriteLog("Debug", "Logged in with auth token " + authToken.Substring(0, 6) + "...");
 
 				return "";
 			}
@@ -122,7 +122,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public async Task<string> getDevices() {
-			Debug.WriteLine("Requesting list of devices from MyQ");
+			Program.WriteLog("Debug", "Requesting list of devices from MyQ");
 			HttpResponseMessage res = await httpClient.GetAsync("/api/v4/userdevicedetails/get");
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
@@ -131,7 +131,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
-			Debug.WriteLine(responseString);
+			Debug.WriteLine(responseString, true);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
@@ -170,8 +170,8 @@ namespace HSPI_LiftMasterMyQ
 				DevicesLastUpdated = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 			}
 			catch (Exception ex) {
-				Debug.WriteLine(ex.Message);
-				Debug.WriteLine(ex.StackTrace);
+				Program.WriteLog("Error", ex.Message);
+				Debug.WriteLine(ex.StackTrace, true);
 				
 				ClientStatus = STATUS_MYQ_DOWN;
 				return ClientStatusString = "MyQ service is temporarily unavailable. " + ex.Message;
@@ -202,7 +202,7 @@ namespace HSPI_LiftMasterMyQ
 			var req = new HttpRequestMessage(HttpMethod.Put, "/api/v4/deviceattribute/putdeviceattribute");
 			req.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-			Debug.WriteLine("Writing door state " + attribValue + " for door id " + myqId);
+			Program.WriteLog("Info", "Writing door state " + attribValue + " for door id " + myqId);
 			HttpResponseMessage res = await httpClient.SendAsync(req);
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
