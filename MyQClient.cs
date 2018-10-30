@@ -131,7 +131,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
-			Debug.WriteToConsole(responseString);
+			Program.WriteLog("Silly", responseString);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
@@ -170,8 +170,7 @@ namespace HSPI_LiftMasterMyQ
 				DevicesLastUpdated = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 			}
 			catch (Exception ex) {
-				Program.WriteLog("Error", ex.Message);
-				Debug.WriteToConsole(ex.StackTrace);
+				Program.WriteLog("Error", ex.Message + "\n" + ex.StackTrace);
 				
 				ClientStatus = STATUS_MYQ_DOWN;
 				return ClientStatusString = "MyQ service is temporarily unavailable. " + ex.Message;
@@ -211,6 +210,9 @@ namespace HSPI_LiftMasterMyQ
 			}
 			
 			// Someday we should probably handle the response, but not this day
+			var responseString = await res.Content.ReadAsStringAsync();
+			Program.WriteLog("Silly", responseString);
+			
 			res.Dispose();
 			return "";
 		}

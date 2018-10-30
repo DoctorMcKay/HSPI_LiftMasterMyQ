@@ -28,7 +28,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public override string InitIO(string port) {
-			Debug.WriteToConsole("InitIO");
+			Program.WriteLog("Silly", "InitIO");
 
 			hs.RegisterPage("LiftMasterMyQSettings", Name, InstanceFriendlyName());
 			var configLink = new HomeSeerAPI.WebPageDesc {

@@ -49,7 +49,6 @@
     <Reference Include="System.Web.Extensions" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Debug.cs" />
     <Compile Include="HSPI.cs" />
     <Compile Include="HspiBase.cs" />
     <Compile Include="MyQClient.cs" />
