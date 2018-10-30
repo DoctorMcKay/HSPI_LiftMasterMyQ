@@ -419,6 +419,18 @@ for (var i in myqSavedSettings) {
 				if (hs.DeviceValue(devRef) != (int) dev.DoorState) {
 					hs.SetDeviceValueByRef(devRef, (int) dev.DoorState, true);
 				}
+				
+				var hsDevice = (DeviceClass) hs.GetDeviceByRef(devRef);
+				var currentAttention = hsDevice.get_Attention(hs);
+				if (!dev.IsOnline && currentAttention == null) {
+					Program.WriteLog("warn", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is offline");
+					hsDevice.set_Attention(hs, "The device is offline. Please check the power and network connections.");
+				}
+				else if (dev.IsOnline && currentAttention != null) {
+					// It's online
+					Program.WriteLog("info", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is now online");
+					hsDevice.set_Attention(hs, null);
+				}
 			}
 		}
 
