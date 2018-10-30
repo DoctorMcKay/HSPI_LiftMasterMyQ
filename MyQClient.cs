@@ -122,7 +122,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public async Task<string> getDevices() {
-			Program.WriteLog("Silly", "Requesting list of devices from MyQ");
+			Program.WriteLog("verbose", "Requesting list of devices from MyQ");
 			HttpResponseMessage res = await httpClient.GetAsync("/api/v4/userdevicedetails/get");
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
@@ -131,7 +131,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
-			Program.WriteLog("Silly", responseString);
+			Program.WriteLog("silly", responseString);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
@@ -211,7 +211,7 @@ namespace HSPI_LiftMasterMyQ
 			
 			// Someday we should probably handle the response, but not this day
 			var responseString = await res.Content.ReadAsStringAsync();
-			Program.WriteLog("Silly", responseString);
+			Program.WriteLog("verbose", responseString);
 			
 			res.Dispose();
 			return "";

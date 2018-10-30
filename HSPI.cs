@@ -28,7 +28,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public override string InitIO(string port) {
-			Program.WriteLog("Silly", "InitIO");
+			Program.WriteLog("verbose", "InitIO");
 
 			hs.RegisterPage("LiftMasterMyQSettings", Name, InstanceFriendlyName());
 			var configLink = new HomeSeerAPI.WebPageDesc {
@@ -299,7 +299,7 @@ for (var i in myqSavedSettings) {
 		}
 
 		private async void syncDevices() {
-			Program.WriteLog("Silly", "Syncing MyQ devices");
+			Program.WriteLog("verbose", "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
@@ -308,7 +308,7 @@ for (var i in myqSavedSettings) {
 				return;
 			}
 
-			Program.WriteLog("Silly", "Got list of " + myqClient.Devices.Count + " devices");
+			Program.WriteLog("verbose", "Got list of " + myqClient.Devices.Count + " devices");
 			foreach (MyQDevice dev in myqClient.Devices) {
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
