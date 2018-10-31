@@ -63,10 +63,14 @@ namespace HSPI_LiftMasterMyQ
 
 			// Don't log Silly type messages to the log unless this is a debug build
 #if DEBUG
-			HsClient.WriteLog(type == "silly" ? "LiftMaster MyQ Silly" : "LiftMaster MyQ", type + ": [" + caller + ":" + lineNumber + "] " + message);
+			if (type != "console") {
+				HsClient.WriteLog(type == "silly" ? "LiftMaster MyQ Silly" : "LiftMaster MyQ",
+					type + ": [" + caller + ":" + lineNumber + "] " + message);
+			}
+
 			System.Console.WriteLine("[" + type + "] " + message);
 #else
-			if (type != "verbose" && type != "silly") {
+			if (type != "verbose" && type != "silly" && type != "console") {
 				HsClient.WriteLog("LiftMaster MyQ", type + ": " + message);
 			}
 #endif

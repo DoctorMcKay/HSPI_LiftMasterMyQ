@@ -131,7 +131,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
-			Program.WriteLog("silly", responseString);
+			Program.WriteLog("console", responseString);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
@@ -149,6 +149,13 @@ namespace HSPI_LiftMasterMyQ
 				switch (returnCode) {
 					case -3333:
 						// Not logged in
+						try {
+							Program.WriteLog("warn", "MyQ error: " + content["ErrorMessage"]);
+						}
+						catch (Exception Ex) {
+							// silently swallow
+						}
+						
 						var errorMsg = await login(username, password);
 						if (errorMsg != "") {
 							return errorMsg;
