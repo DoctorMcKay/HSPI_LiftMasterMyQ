@@ -426,10 +426,10 @@ for (var i in myqSavedSettings) {
 					Program.WriteLog("warn", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is offline");
 					hsDevice.set_Attention(hs, "The device is offline. Please check the power and network connections.");
 				}
-				else if (dev.IsOnline && currentAttention != null) {
+				else if (dev.IsOnline && !String.IsNullOrEmpty(currentAttention)) {
 					// It's online
 					Program.WriteLog("info", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is now online");
-					Program.WriteLog("debug", "Device ref " + devRef + " had attention: " + currentAttention);
+					Program.WriteLog("debug", "Device ref " + devRef + " had attention: \"" + currentAttention + "\"");
 					hsDevice.set_Attention(hs, null);
 				}
 			}
