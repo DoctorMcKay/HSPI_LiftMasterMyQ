@@ -89,6 +89,7 @@ namespace HSPI_LiftMasterMyQ
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
+			Program.WriteLog("verbose", responseString);
 			dynamic content = jsonSerializer.DeserializeObject(responseString);
 			res.Dispose();
 
