@@ -153,7 +153,7 @@ namespace HSPI_LiftMasterMyQ
 						try {
 							Program.WriteLog("warn", "MyQ error: " + content["ErrorMessage"]);
 						}
-						catch (Exception Ex) {
+						catch (Exception) {
 							// silently swallow
 						}
 						
