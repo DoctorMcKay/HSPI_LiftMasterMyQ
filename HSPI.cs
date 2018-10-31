@@ -429,6 +429,7 @@ for (var i in myqSavedSettings) {
 				else if (dev.IsOnline && currentAttention != null) {
 					// It's online
 					Program.WriteLog("info", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is now online");
+					Program.WriteLog("debug", "Device ref " + devRef + " had attention: " + currentAttention);
 					hsDevice.set_Attention(hs, null);
 				}
 			}
