@@ -17,6 +17,7 @@ namespace HSPI_LiftMasterMyQ
 		private Timer pollTimer;
 		private readonly Dictionary<string, int> serialToRef;
 		private readonly Dictionary<int, int> refToMyqId;
+		private readonly Dictionary<int, bool> refLastOnlineStatus;
 		
 		public HSPI() {
 			Name = "LiftMaster MyQ";
@@ -25,6 +26,7 @@ namespace HSPI_LiftMasterMyQ
 			myqClient = new MyQClient();
 			serialToRef = new Dictionary<string, int>();
 			refToMyqId = new Dictionary<int, int>();
+			refLastOnlineStatus = new Dictionary<int, bool>();
 		}
 
 		public override string InitIO(string port) {
@@ -419,19 +421,27 @@ for (var i in myqSavedSettings) {
 				if (hs.DeviceValue(devRef) != (int) dev.DoorState) {
 					hs.SetDeviceValueByRef(devRef, (int) dev.DoorState, true);
 				}
+
+				bool deviceLastSeenOnline;
+				if (!refLastOnlineStatus.TryGetValue(devRef, out deviceLastSeenOnline)) {
+					// No last known online status, so set the "last known status" to the inverse of what it is now
+					// That way we update HS3
+					deviceLastSeenOnline = !dev.IsOnline;
+				}
 				
-				var hsDevice = (DeviceClass) hs.GetDeviceByRef(devRef);
-				var currentAttention = hsDevice.get_Attention(hs);
-				if (!dev.IsOnline && currentAttention == null) {
+				if (!dev.IsOnline && deviceLastSeenOnline) {
+					var hsDevice = (DeviceClass) hs.GetDeviceByRef(devRef);
 					Program.WriteLog("warn", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is offline");
 					hsDevice.set_Attention(hs, "The device is offline. Please check the power and network connections.");
 				}
-				else if (dev.IsOnline && !String.IsNullOrEmpty(currentAttention)) {
+				else if (dev.IsOnline && !deviceLastSeenOnline) {
 					// It's online
+					var hsDevice = (DeviceClass) hs.GetDeviceByRef(devRef);
 					Program.WriteLog("info", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is now online");
-					Program.WriteLog("debug", "Device ref " + devRef + " had attention: \"" + currentAttention + "\"");
 					hsDevice.set_Attention(hs, null);
 				}
+
+				refLastOnlineStatus[devRef] = dev.IsOnline;
 			}
 		}
 
