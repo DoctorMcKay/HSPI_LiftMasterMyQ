@@ -174,6 +174,8 @@ namespace HSPI_LiftMasterMyQ
 					devices.Add(new MyQDevice(deviceInfo));
 				}
 
+				ClientStatus = STATUS_OK;
+
 				Devices = devices;
 				DevicesLastUpdated = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 			}
