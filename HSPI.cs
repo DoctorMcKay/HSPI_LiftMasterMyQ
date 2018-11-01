@@ -306,7 +306,7 @@ for (var i in myqSavedSettings) {
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
 				// Something went wrong!
-				Program.WriteLog("Warn", "Cannot retrieve device list from MyQ: " + errorMsg);
+				Program.WriteLog("error", "Cannot retrieve device list from MyQ: " + errorMsg);
 				return;
 			}
 

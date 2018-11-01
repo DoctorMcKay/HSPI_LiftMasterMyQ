@@ -151,7 +151,7 @@ namespace HSPI_LiftMasterMyQ
 					case -3333:
 						// Not logged in
 						try {
-							Program.WriteLog("warn", "MyQ error: " + content["ErrorMessage"]);
+							Program.WriteLog("error", "MyQ error: " + content["ErrorMessage"]);
 						}
 						catch (Exception) {
 							// silently swallow
