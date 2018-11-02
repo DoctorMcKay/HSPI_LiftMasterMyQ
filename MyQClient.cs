@@ -81,6 +81,7 @@ namespace HSPI_LiftMasterMyQ
 			req.Content = new StringContent(jsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
 			Program.WriteLog("Debug", "Logging into MyQ");
+			dynamic content;
 			try {
 				HttpResponseMessage res = await httpClient.SendAsync(req);
 				if (!res.IsSuccessStatusCode) {
@@ -88,16 +89,16 @@ namespace HSPI_LiftMasterMyQ
 					ClientStatus = STATUS_MYQ_DOWN;
 					return ClientStatusString = "Got failure response code from MyQ: " + res.StatusCode;
 				}
+				
+				var responseString = await res.Content.ReadAsStringAsync();
+				Program.WriteLog("verbose", responseString);
+				content = jsonSerializer.DeserializeObject(responseString);
+				res.Dispose();
 			}
 			catch (Exception ex) {
 				ClientStatus = STATUS_MYQ_DOWN;
 				return ClientStatusString = ex.Message;
 			}
-
-			var responseString = await res.Content.ReadAsStringAsync();
-			Program.WriteLog("verbose", responseString);
-			dynamic content = jsonSerializer.DeserializeObject(responseString);
-			res.Dispose();
 
 			try {
 				// https://github.com/thomasmunduchira/myq-api/blob/master/src/myq.js#L141
