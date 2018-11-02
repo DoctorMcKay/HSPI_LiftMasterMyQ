@@ -81,11 +81,17 @@ namespace HSPI_LiftMasterMyQ
 			req.Content = new StringContent(jsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
 			Program.WriteLog("Debug", "Logging into MyQ");
-			HttpResponseMessage res = await httpClient.SendAsync(req);
-			if (!res.IsSuccessStatusCode) {
-				res.Dispose();
+			try {
+				HttpResponseMessage res = await httpClient.SendAsync(req);
+				if (!res.IsSuccessStatusCode) {
+					res.Dispose();
+					ClientStatus = STATUS_MYQ_DOWN;
+					return ClientStatusString = "Got failure response code from MyQ: " + res.StatusCode;
+				}
+			}
+			catch (Exception ex) {
 				ClientStatus = STATUS_MYQ_DOWN;
-				return ClientStatusString = "Got failure response code from MyQ: " + res.StatusCode;
+				return ClientStatusString = ex.Message;
 			}
 
 			var responseString = await res.Content.ReadAsStringAsync();
