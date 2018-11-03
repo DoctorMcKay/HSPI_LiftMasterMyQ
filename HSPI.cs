@@ -315,21 +315,13 @@ for (var i in myqSavedSettings) {
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
 					// We need to look it up in HS3, and maybe create the device
-					var enumerator = (clsDeviceEnumeration) hs.GetDeviceEnumerator();
-					do {
-						DeviceClass enumDev = enumerator.GetNext();
-						if (enumDev == null) {
-							break;
-						}
-
-						if (enumDev.get_Address(hs).Split('-')[0] == dev.DeviceSerialNumber && enumDev.get_Interface(hs) == Name) {
-							// found it!
-							devRef = enumDev.get_Ref(hs);
-							Program.WriteLog("Debug", "Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
-							serialToRef.Add(dev.DeviceSerialNumber, devRef);
-							break;
-						}
-					} while (!enumerator.Finished);
+					devRef = hs.DeviceExistsAddress(dev.DeviceSerialNumber, false);
+					if (devRef == -1) {
+						devRef = 0;
+					} else {
+						Program.WriteLog("Debug", "Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
+						serialToRef.Add(dev.DeviceSerialNumber, devRef);
+					}
 					
 					if (devRef == 0) {
 						Program.WriteLog("Debug", "Creating new device in HS3 for GDO serial " + dev.DeviceSerialNumber);
