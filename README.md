@@ -8,7 +8,7 @@ It should work with any opener that can be controlled by the
 
 # Installation
 
-Until this plugin is included in the HomeSeer plugin updater, you will need to install it manually.
+You will need to install the plugin manually.
 Download HSPI_LiftMasterMyQ.exe from the [latest release](https://github.com/DoctorMcKay/HSPI_LiftMasterMyQ/releases/latest)
 and drop it into your HS3 directory (where HomeSeerAPI.dll is located). Then restart HS3.
 
