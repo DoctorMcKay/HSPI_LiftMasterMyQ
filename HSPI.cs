@@ -13,7 +13,7 @@ namespace HSPI_LiftMasterMyQ
 	// ReSharper disable once InconsistentNaming
 	public class HSPI : HspiBase
 	{
-		private readonly MyQClient myqClient;
+		private MyQClient myqClient;
 		private Timer pollTimer;
 		private readonly Dictionary<string, int> serialToRef;
 		private readonly Dictionary<int, int> refToMyqId;
@@ -23,7 +23,6 @@ namespace HSPI_LiftMasterMyQ
 			Name = "LiftMaster MyQ";
 			PluginIsFree = true;
 			
-			myqClient = new MyQClient();
 			serialToRef = new Dictionary<string, int>();
 			refToMyqId = new Dictionary<int, int>();
 			refLastOnlineStatus = new Dictionary<int, bool>();
@@ -44,6 +43,7 @@ namespace HSPI_LiftMasterMyQ
 			callbacks.RegisterConfigLink(configLink);
 			callbacks.RegisterLink(configLink);
 			
+			myqClient = new MyQClient(hs.GetINISetting("Options", "myq_use_craftsman", "0", IniFilename) == "1" ? MyQMake.Craftsman : MyQMake.LiftMaster);
 			var myqUsername = hs.GetINISetting("Authentication", "myq_username", "", IniFilename);
 			var myqPassword = getMyQPassword(false);
 			if (myqUsername.Length > 0 && myqPassword.Length > 0) {
@@ -154,6 +154,14 @@ namespace HSPI_LiftMasterMyQ
 	<input type=""number"" name=""myq_poll_frequency"" id=""myq_poll_frequency"" step=""1"" min=""5000"" />
 </div>
 
+<div>
+	<label for=""myq_use_craftsman"">Brand</label>
+	<select name=""myq_use_craftsman"" id=""myq_use_craftsman"">
+		<option value=""0"">LiftMaster / Chamberlain</option>
+		<option value=""1"">Craftsman</option>
+	</select>
+</div>
+
 <button type=""submit"">Submit</button>
 ");
 			sb.Append(PageBuilderAndMenu.clsPageBuilder.FormEnd());
@@ -161,7 +169,8 @@ namespace HSPI_LiftMasterMyQ
 			var savedSettings = new Dictionary<string, string> {
 				{"myq_username", hs.GetINISetting("Authentication", "myq_username", "", IniFilename)},
 				{"myq_password", getMyQPassword(true)},
-				{"myq_poll_frequency", hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)}
+				{"myq_poll_frequency", hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)},
+				{"myq_use_craftsman", hs.GetINISetting("Options", "myq_use_craftsman", "0", IniFilename)},
 			};
 			
 			sb.Append("<script>var myqSavedSettings = ");
@@ -218,14 +227,14 @@ for (var i in myqSavedSettings) {
 					if (authCredsChanged) {
 						var username = qs.Get("myq_username").Trim();
 						var password = qs.Get("myq_password");
-						
+
 						hs.SaveINISetting("Authentication", "myq_username", username.Trim(), IniFilename);
 						if (password != "*****") {
 							// This doesn't provide any actual security, but at least the password isn't in
 							// plaintext on the disk. Base64 is juuuuust barely not plaintext, but what're ya
 							// gonna do?
 							var encoded = System.Convert.ToBase64String(Encoding.UTF8.GetBytes((string) password));
-							hs.SaveINISetting("Authentication", "myq_password", encoded, IniFilename);							
+							hs.SaveINISetting("Authentication", "myq_password", encoded, IniFilename);
 						}
 					}
 
@@ -236,22 +245,32 @@ for (var i in myqSavedSettings) {
 						pollTimer.Interval = n;
 					}
 
-					if (authCredsChanged) {
+					var prevUseCraftsman = hs.GetINISetting("Options", "myq_use_craftsman", "0", IniFilename) == "1";
+					var newUseCraftsman = prevUseCraftsman;
+					string useCraftsman;
+
+					if ((useCraftsman = qs.Get("myq_use_craftsman")) != null) {
+						newUseCraftsman = useCraftsman == "1";
+						hs.SaveINISetting("Options", "myq_use_craftsman", useCraftsman, IniFilename);
+						if (newUseCraftsman != prevUseCraftsman) {
+							myqClient = new MyQClient(useCraftsman == "1" ? MyQMake.Craftsman : MyQMake.LiftMaster);
+						}
+					}
+
+					if (authCredsChanged || newUseCraftsman != prevUseCraftsman) {
 						var authTask = myqClient.login(hs.GetINISetting("Authentication", "myq_username", "", IniFilename),
 							getMyQPassword(false), true);
 						authTask.Wait();
 						if (authTask.Result.Length > 0) {
 							return buildSettingsPage(user, userRights, "", authTask.Result,
 								"myq_message_box myq_error_message");
-						}
-						else {
+						} else {
 							syncDevices();
 							return buildSettingsPage(user, userRights, "",
 								"Settings have been saved successfully. Authentication success.",
 								"myq_message_box myq_success_message");
 						}
-					}
-					else {
+					} else {
 						return buildSettingsPage(user, userRights, "", "Settings have been saved successfully.",
 							"myq_message_box myq_success_message");
 					}

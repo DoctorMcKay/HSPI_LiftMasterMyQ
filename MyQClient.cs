@@ -14,7 +14,16 @@ namespace HSPI_LiftMasterMyQ
 		public const int STATUS_MYQ_DOWN = 1;
 		public const int STATUS_UNAUTHORIZED = 2;
 		public int ClientStatus { get; private set; }
-		public string ClientStatusString { get; private set; }
+
+		private string _clientStatusString;
+		public string ClientStatusString {
+			get { return _clientStatusString; }
+			private set {
+				_clientStatusString = value;
+				Program.WriteLog("verbose", "ClientStatusString changed to: " + value);
+			}
+		}
+
 		public long LoginThrottledAt { get; private set; }
 
 		public List<MyQDevice> Devices;
@@ -186,7 +195,7 @@ namespace HSPI_LiftMasterMyQ
 						// Unauthorized
 						ClientStatus = STATUS_UNAUTHORIZED;
 						ClientStatusString = content["ErrorMessage"];
-						break;
+						return content["ErrorMessage"];
 				}
 				
 				foreach (var deviceInfo in content["Devices"]) {
