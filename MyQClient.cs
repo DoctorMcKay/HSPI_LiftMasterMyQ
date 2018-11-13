@@ -181,6 +181,12 @@ namespace HSPI_LiftMasterMyQ
 						else {
 							return await getDevices(); // try again!
 						}
+					
+					case 216:
+						// Unauthorized
+						ClientStatus = STATUS_UNAUTHORIZED;
+						ClientStatusString = content["ErrorMessage"];
+						break;
 				}
 				
 				foreach (var deviceInfo in content["Devices"]) {
