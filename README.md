@@ -1,10 +1,7 @@
 # LiftMaster MyQ for HomeSeer HS3
 
-This is a free, open-source plugin to control LiftMaster-branded MyQ garage doors and gates. It may also work with other
-brands of MyQ openers, but has only been tested on a LiftMaster 8355W opener.
-
-It should work with any opener that can be controlled by the
-[MyQ Garage & Access Control app](https://play.google.com/store/apps/details?id=com.chamberlain.android.liftmaster.myq).
+This is a free, open-source plugin to control MyQ garage doors and gates. It should work with LiftMaster, Chamberlain,
+and Craftsman-branded openers, but has only been tested on a LiftMaster 8355W opener.
 
 # Installation
 
@@ -26,7 +23,12 @@ the more quickly your door status will update in the HS3 UI (and trigger events)
 server and the more likely you draw their operations' guys attention. We aren't exactly using an API that's publicly
 supported so if you draw their attention, you might get cut off from the service. Lower at your own risk.
 
-Once you enter your email, password, and optionally change the poll frequency, click "Submit". The plugin will
+If your opener is branded as Craftsman, then you will need to select it in the "Brand" dropdown list. Note that while
+the plugin can control multiple garage door openers, it can only control openers branded as LiftMaster/Chamberlain
+(they use the same interface), or branded as Craftsman. Craftsman-branded openers cannot be controlled alongside openers
+branded as either LiftMaster or Chamberlain.
+
+Once you enter your email, password, brand, and optionally change the poll frequency, click "Submit". The plugin will
 immediately attempt to authenticate with MyQ and will let you know whether it succeeded or failed.
 
 Once you successfully authenticate, the plugin will automatically create devices in HS3 for each garage door or gate
