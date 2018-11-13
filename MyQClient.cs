@@ -21,6 +21,10 @@ namespace HSPI_LiftMasterMyQ
 		public long DevicesLastUpdated;
 		
 		private const string BASE_URL = "https://myqexternal.myqdevice.com";
+		private const string BASE_URL_CRAFTSMAN = "https://craftexternal.myqdevice.com";
+
+		private const string APP_ID = "NWknvuBd7LoFHfXmKNMBcgajXtZEgKUh4V7WNzMidrpUUluDpVYVZx+xT4PCM5Kx";
+		private const string APP_ID_CRAFTSMAN = "eU97d99kMG4t3STJZO/Mu2wt69yTQwM0WXZA5oZ74/ascQ2xQrLD/yjeVhEQccBZ";
 
 		private const int ACTION_CLOSE_DOOR = 0;
 		private const int ACTION_OPEN_DOOR = 1;
@@ -35,11 +39,17 @@ namespace HSPI_LiftMasterMyQ
 		private int loginThrottleAttempts = 0;
 		private Timer loginThrottle;
 
-		public MyQClient() {
+		public MyQClient(MyQMake make = MyQMake.LiftMaster) {
 			httpClient = new HttpClient();
-			httpClient.BaseAddress = new Uri(BASE_URL);
-			httpClient.DefaultRequestHeaders.Add("MyQApplicationId", "NWknvuBd7LoFHfXmKNMBcgajXtZEgKUh4V7WNzMidrpUUluDpVYVZx+xT4PCM5Kx");
-			
+
+			if (make == MyQMake.LiftMaster || make == MyQMake.Chamberlain) {
+				httpClient.BaseAddress = new Uri(BASE_URL);
+				httpClient.DefaultRequestHeaders.Add("MyQApplicationId", APP_ID);
+			} else if (make == MyQMake.Craftsman) {
+				httpClient.BaseAddress = new Uri(BASE_URL_CRAFTSMAN);
+				httpClient.DefaultRequestHeaders.Add("MyQApplicationId", APP_ID_CRAFTSMAN);
+			}
+
 			jsonSerializer = new JavaScriptSerializer();
 			
 			ClientStatus = STATUS_OK;
@@ -233,5 +243,12 @@ namespace HSPI_LiftMasterMyQ
 			res.Dispose();
 			return "";
 		}
+	}
+
+	public enum MyQMake
+	{
+		LiftMaster = 1,
+		Chamberlain = 2,
+		Craftsman = 3,
 	}
 }
