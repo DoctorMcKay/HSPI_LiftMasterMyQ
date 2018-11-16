@@ -74,13 +74,13 @@ namespace HSPI_LiftMasterMyQ
 		/// <param name="password"></param>
 		/// <param name="overrideThrottle"></param>
 		/// <returns>string</returns>
-		public async Task<string> login(string username, string password, bool overrideThrottle = false) {
+		public async Task<string> login(string username, string password, bool overrideThrottle = false, int retryCount = 0) {
 			if (overrideThrottle) {
 				loginThrottleAttempts = 0;
 				loginThrottle.Stop();
 			}
 			
-			if (++loginThrottleAttempts >= 3) {
+			if (++loginThrottleAttempts >= 3 || retryCount > 3) {
 				LoginThrottledAt = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 				ClientStatus = STATUS_UNAUTHORIZED;
 				return ClientStatusString = "Login attempts throttled";
@@ -100,7 +100,7 @@ namespace HSPI_LiftMasterMyQ
 			req.Content = new StringContent(jsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
 			Program.WriteLog("Debug", "Logging into MyQ");
-			dynamic content;
+			dynamic content = null;
 			try {
 				HttpResponseMessage res = await httpClient.SendAsync(req);
 				if (!res.IsSuccessStatusCode) {
@@ -116,7 +116,12 @@ namespace HSPI_LiftMasterMyQ
 			}
 			catch (Exception ex) {
 				ClientStatus = STATUS_MYQ_DOWN;
-				return ClientStatusString = ex.Message;
+				ClientStatusString = ex.Message;
+			}
+
+			if (content == null) {
+				await Task.Delay(5000);
+				return await login(username, password, overrideThrottle, retryCount + 1);
 			}
 
 			try {
