@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Web.Script.Serialization;
+using HomeSeerAPI;
 
 namespace HSPI_LiftMasterMyQ
 {
@@ -124,8 +125,13 @@ namespace HSPI_LiftMasterMyQ
 				res.Dispose();
 			}
 			catch (Exception ex) {
+				if (ex.Message.Contains("ConnectFailure")) {
+					// Don't hold this against our login throttle
+					loginThrottleAttempts--;
+				}
+				
 				ClientStatus = STATUS_MYQ_DOWN;
-				ClientStatusString = ex.Message;
+				return ClientStatusString = ex.Message;
 			}
 
 			if (content == null) {
