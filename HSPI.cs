@@ -47,7 +47,7 @@ namespace HSPI_LiftMasterMyQ
 			var myqUsername = hs.GetINISetting("Authentication", "myq_username", "", IniFilename);
 			var myqPassword = getMyQPassword(false);
 			if (myqUsername.Length > 0 && myqPassword.Length > 0) {
-				myqClient.login(myqUsername, myqPassword).ContinueWith(t => {
+				myqClient.Login(myqUsername, myqPassword).ContinueWith(t => {
 					if (t.Result == "") {
 						// no error occurred
 						syncDevices();
@@ -258,7 +258,7 @@ for (var i in myqSavedSettings) {
 					}
 
 					if (authCredsChanged || newUseCraftsman != prevUseCraftsman) {
-						var authTask = myqClient.login(hs.GetINISetting("Authentication", "myq_username", "", IniFilename),
+						var authTask = myqClient.Login(hs.GetINISetting("Authentication", "myq_username", "", IniFilename),
 							getMyQPassword(false), true);
 						authTask.Wait();
 						if (authTask.Result.Length > 0) {

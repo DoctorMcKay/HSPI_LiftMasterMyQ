@@ -73,8 +73,9 @@ namespace HSPI_LiftMasterMyQ
 		/// <param name="username"></param>
 		/// <param name="password"></param>
 		/// <param name="overrideThrottle"></param>
+		/// <param name="retryCount"></param>
 		/// <returns>string</returns>
-		public async Task<string> login(string username, string password, bool overrideThrottle = false, int retryCount = 0) {
+		public async Task<string> Login(string username, string password, bool overrideThrottle = false, int retryCount = 0) {
 			if (overrideThrottle) {
 				loginThrottleAttempts = 0;
 				loginThrottle.Stop();
@@ -83,7 +84,13 @@ namespace HSPI_LiftMasterMyQ
 			if (++loginThrottleAttempts >= 3 || retryCount > 3) {
 				LoginThrottledAt = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 				ClientStatus = STATUS_UNAUTHORIZED;
-				return ClientStatusString = "Login attempts throttled";
+				ClientStatusString = "Login attempts throttled";
+
+				Timer retry = new Timer(30000);
+				retry.Elapsed += (object src, ElapsedEventArgs args) => { Login(username, password); };
+				retry.Start();
+
+				return ClientStatusString;
 			}
 			
 			loginThrottle.Start();
@@ -121,7 +128,7 @@ namespace HSPI_LiftMasterMyQ
 
 			if (content == null) {
 				await Task.Delay(5000);
-				return await login(username, password, overrideThrottle, retryCount + 1);
+				return await Login(username, password, overrideThrottle, retryCount + 1);
 			}
 
 			try {
@@ -188,7 +195,7 @@ namespace HSPI_LiftMasterMyQ
 							// silently swallow
 						}
 						
-						var errorMsg = await login(username, password);
+						var errorMsg = await Login(username, password);
 						if (errorMsg != "") {
 							return errorMsg;
 						}
