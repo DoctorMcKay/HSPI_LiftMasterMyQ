@@ -65,7 +65,10 @@ namespace HSPI_LiftMasterMyQ
 			ClientStatus = STATUS_OK;
 
 			loginThrottle = new Timer(2000);
-			loginThrottle.Elapsed += (Object source, ElapsedEventArgs a) => { loginThrottleAttempts = 0; };
+			loginThrottle.Elapsed += (Object source, ElapsedEventArgs a) => {
+				loginThrottleAttempts = 0;
+				Program.WriteLog("verbose", "Resetting login throttle attempts");
+			};
 		}
 
 		/// <summary>
