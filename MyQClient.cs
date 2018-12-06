@@ -81,6 +81,8 @@ namespace HSPI_LiftMasterMyQ
 				loginThrottleAttempts = 0;
 				loginThrottle.Stop();
 			}
+
+			Program.WriteLog("verbose", "Attempting to login to MyQ");
 			
 			if (++loginThrottleAttempts >= 3 || retryCount > 3) {
 				LoginThrottledAt = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
