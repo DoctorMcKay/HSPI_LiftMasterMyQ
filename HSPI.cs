@@ -13,6 +13,8 @@ namespace HSPI_LiftMasterMyQ
 	// ReSharper disable once InconsistentNaming
 	public class HSPI : HspiBase
 	{
+		public const string PLUGIN_NAME = "LiftMaster MyQ";
+		
 		private MyQClient myqClient;
 		private Timer pollTimer;
 		private readonly Dictionary<string, int> serialToRef;
@@ -29,7 +31,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public override string InitIO(string port) {
-			Program.WriteLog("verbose", "InitIO");
+			Program.WriteLog(LogType.Verbose, "InitIO");
 
 			hs.RegisterPage("LiftMasterMyQSettings", Name, InstanceFriendlyName());
 			var configLink = new HomeSeerAPI.WebPageDesc {
@@ -65,15 +67,15 @@ namespace HSPI_LiftMasterMyQ
 
 		public override void SetIOMulti(List<CAPI.CAPIControl> colSend) {
 			foreach (var upd in colSend) {
-				Program.WriteLog("Debug", "Ref " + upd.Ref + " set to " + upd.ControlValue);
+				Program.WriteLog(LogType.Debug, "Ref " + upd.Ref + " set to " + upd.ControlValue);
 				int myqId;
 				if (!refToMyqId.TryGetValue(upd.Ref, out myqId)) {
-					Program.WriteLog("Warn", "No MyQ ID for ref " + upd.Ref + "!!");
+					Program.WriteLog(LogType.Error, "No MyQ ID for ref " + upd.Ref + "!!");
 					continue;
 				}
 
 				myqClient.moveDoor(myqId, (MyQDoorState) upd.ControlValue).ContinueWith(t => {
-					Program.WriteLog("Debug", "Move door command completed" + (t.Result.Length > 0 ? " with error: " + t.Result : ""));
+					Program.WriteLog(LogType.Debug, "Move door command completed" + (t.Result.Length > 0 ? " with error: " + t.Result : ""));
 
 					Timer timer = new Timer(1000);
 					timer.AutoReset = false;
@@ -84,7 +86,7 @@ namespace HSPI_LiftMasterMyQ
 		}
 
 		public override string GetPagePlugin(string pageName, string user, int userRights, string queryString) {
-			Program.WriteLog("Debug", "Requested page name " + pageName + " by user " + user + " with rights " + userRights);
+			Program.WriteLog(LogType.Verbose, "Requested page name " + pageName + " by user " + user + " with rights " + userRights);
 
 			switch (pageName) {
 				case "LiftMasterMyQSettings":
@@ -196,7 +198,7 @@ for (var i in myqSavedSettings) {
 		}
 
 		public override string PostBackProc(string pageName, string data, string user, int userRights) {
-			Program.WriteLog("Debug", "PostBackProc for page " + pageName + " with data " + data + " by user " + user + " with rights " + userRights);
+			Program.WriteLog(LogType.Verbose, "PostBackProc for page " + pageName + " with data " + data + " by user " + user + " with rights " + userRights);
 			switch (pageName) {
 				case "LiftMasterMyQSettings":
 					if ((userRights & 2) != 2) {
@@ -320,16 +322,16 @@ for (var i in myqSavedSettings) {
 		}
 
 		private async void syncDevices() {
-			Program.WriteLog("verbose", "Syncing MyQ devices");
+			Program.WriteLog(LogType.Verbose, "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
 				// Something went wrong!
-				Program.WriteLog("error", "Cannot retrieve device list from MyQ: " + errorMsg);
+				Program.WriteLog(LogType.Error, "Cannot retrieve device list from MyQ: " + errorMsg);
 				return;
 			}
 
-			Program.WriteLog("verbose", "Got list of " + myqClient.Devices.Count + " devices");
+			Program.WriteLog(LogType.Verbose, "Got list of " + myqClient.Devices.Count + " devices");
 			foreach (MyQDevice dev in myqClient.Devices) {
 				int devRef = 0;
 				if (!serialToRef.TryGetValue(dev.DeviceSerialNumber, out devRef)) {
@@ -338,12 +340,12 @@ for (var i in myqSavedSettings) {
 					if (devRef == -1) {
 						devRef = 0;
 					} else {
-						Program.WriteLog("Debug", "Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
+						Program.WriteLog(LogType.Debug, "Found existing device for GDO " + dev.DeviceSerialNumber + " with ref " + devRef);
 						serialToRef.Add(dev.DeviceSerialNumber, devRef);
 					}
 					
 					if (devRef == 0) {
-						Program.WriteLog("Debug", "Creating new device in HS3 for GDO serial " + dev.DeviceSerialNumber);
+						Program.WriteLog(LogType.Debug, "Creating new device in HS3 for GDO serial " + dev.DeviceSerialNumber);
 						
 						// Didn't find an existing device; create one
 						devRef = hs.NewDeviceRef(dev.DeviceTypeName);
@@ -416,7 +418,7 @@ for (var i in myqSavedSettings) {
 				}
 
 				if (devRef == 0) {
-					Program.WriteLog("Warn", "Somehow we still ended up with devRef == 0 for door " + dev.DeviceSerialNumber);
+					Program.WriteLog(LogType.Warn, "Somehow we still ended up with devRef == 0 for door " + dev.DeviceSerialNumber);
 					continue;
 				}
 				
@@ -442,13 +444,13 @@ for (var i in myqSavedSettings) {
 				
 				if (!dev.IsOnline && deviceLastSeenOnline) {
 					var hsDevice = (DeviceClass) hs.GetDeviceByRef(devRef);
-					Program.WriteLog("warn", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is offline");
+					Program.WriteLog(LogType.Warn, "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is offline");
 					hsDevice.set_Attention(hs, "The device is offline. Please check the power and network connections.");
 				}
 				else if (dev.IsOnline && !deviceLastSeenOnline) {
 					// It's online
 					var hsDevice = (DeviceClass) hs.GetDeviceByRef(devRef);
-					Program.WriteLog("info", "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is now online");
+					Program.WriteLog(LogType.Info, "Device ref " + devRef + " (MyQ ID " + dev.DeviceId + ") is now online");
 					hsDevice.set_Attention(hs, null);
 				}
 

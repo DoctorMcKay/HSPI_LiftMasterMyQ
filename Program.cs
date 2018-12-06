@@ -58,22 +58,48 @@ namespace HSPI_LiftMasterMyQ
 			}
 		}
 
-		public static void WriteLog(string type, string message, [CallerLineNumber] int lineNumber = 0, [CallerMemberName] string caller = null) {
-			type = type.ToLower();
-
-			// Don't log Silly type messages to the log unless this is a debug build
-#if DEBUG
-			if (type != "console") {
-				HsClient.WriteLog(type == "silly" ? "LiftMaster MyQ Silly" : "LiftMaster MyQ",
-					type + ": [" + caller + ":" + lineNumber + "] " + message);
-			}
-
-			System.Console.WriteLine("[" + type + "] " + message);
-#else
-			if (type != "verbose" && type != "silly" && type != "console") {
-				HsClient.WriteLog("LiftMaster MyQ", type + ": " + message);
+		public static void WriteLog(LogType logType, string message, [CallerLineNumber] int lineNumber = 0, [CallerMemberName] string caller = null) {
+#if !DEBUG
+			if (logType <= LogType.Verbose) {
+				// Don't log Console, Silly, and Verbose messages in production builds
+				return;
 			}
 #endif
+
+			string type = logType.ToString().ToLower();
+
+#if DEBUG
+			if (logType != LogType.Console) {
+				// Log to HS3 log
+				string hs3LogType = HSPI.PLUGIN_NAME;
+				if (logType == LogType.Silly) {
+					hs3LogType += " Silly";
+				}
+
+				HsClient.WriteLog(hs3LogType, type + ": [" + caller + ":" + lineNumber + "] " + message);
+			}
+
+			Console.WriteLine("[" + type + "] " + message);
+#else
+			string hs3LogType = HSPI.PLUGIN_NAME;
+			if (logType == LogType.Debug) {
+				hs3LogType += " Debug";
+			}
+			
+			HsClient.WriteLog(hs3LogType, type + ": " + message);
+#endif
 		}
+	}
+	
+	public enum LogType
+	{
+		Console = 1,				// DEBUG ONLY: Printed to the console
+		Silly = 2,					// DEBUG ONLY: Logged to HS3 log under type "PluginName Silly"
+		Verbose = 3,				// DEBUG ONLY: Logged to HS3 log under normal type
+		Debug = 4,					// In debug builds, logged to HS3 log under normal type. In production builds, logged to HS3 log under type "PluginName Debug"
+		Info = 5,
+		Warn = 6,
+		Error = 7,
+		Critical = 8,
 	}
 }
