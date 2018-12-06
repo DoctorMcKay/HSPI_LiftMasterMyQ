@@ -64,7 +64,7 @@ namespace HSPI_LiftMasterMyQ
 			
 			ClientStatus = STATUS_OK;
 
-			loginThrottle = new Timer(2000);
+			loginThrottle = new Timer(2000) {AutoReset = false};
 			loginThrottle.Elapsed += (object src, ElapsedEventArgs a) => {
 				loginThrottleAttempts = 0;
 				Program.WriteLog(LogType.Verbose, "Resetting login throttle attempts");
@@ -92,7 +92,7 @@ namespace HSPI_LiftMasterMyQ
 				ClientStatus = STATUS_UNAUTHORIZED;
 				ClientStatusString = "Login attempts throttled";
 
-				Timer retry = new Timer(30000);
+				Timer retry = new Timer(30000) {AutoReset = false};
 #pragma warning disable 4014
 				retry.Elapsed += (object src, ElapsedEventArgs args) => { Login(username, password); };
 #pragma warning restore 4014
