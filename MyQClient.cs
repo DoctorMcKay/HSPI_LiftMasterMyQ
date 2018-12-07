@@ -136,7 +136,7 @@ namespace HSPI_LiftMasterMyQ
 				}
 				
 				ClientStatus = STATUS_MYQ_DOWN;
-				return ClientStatusString = ex.Message;
+				ClientStatusString = ex.Message;
 			}
 
 			if (content == null) {
