@@ -64,8 +64,10 @@ namespace HSPI_LiftMasterMyQ
 			
 			Timer sanityCheck = new Timer(60000) {AutoReset = true};
 			sanityCheck.Elapsed += (object src, ElapsedEventArgs a) => {
-				if (Helpers.GetUnixTimeSeconds() - myqClient.DevicesLastUpdated > 60) {
+				long lastUpdatedTime = Helpers.GetUnixTimeSeconds() - myqClient.DevicesLastUpdated;
+				if (lastUpdatedTime > 60) {
 					// Devices last updated 60 seconds ago, so something broke.
+					Program.WriteLog(LogType.Warn, "MyQ devices last updated " + lastUpdatedTime + " seconds ago; running poll now");
 					syncDevices();
 				}
 			};
