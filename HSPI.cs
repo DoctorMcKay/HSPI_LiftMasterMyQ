@@ -61,6 +61,15 @@ namespace HSPI_LiftMasterMyQ
 			pollTimer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
 			pollTimer.AutoReset = false;
 			// don't enable just yet
+			
+			Timer sanityCheck = new Timer(60000) {AutoReset = true};
+			sanityCheck.Elapsed += (object src, ElapsedEventArgs a) => {
+				if (Helpers.GetUnixTimeSeconds() - myqClient.DevicesLastUpdated > 60) {
+					// Devices last updated 60 seconds ago, so something broke.
+					syncDevices();
+				}
+			};
+			sanityCheck.Start();
 
 			return "";
 		}
@@ -324,6 +333,7 @@ for (var i in myqSavedSettings) {
 		private async void syncDevices() {
 			Program.WriteLog(LogType.Verbose, "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
+			pollTimer.Stop();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
 				// Something went wrong!
