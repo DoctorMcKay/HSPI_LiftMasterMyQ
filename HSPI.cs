@@ -376,12 +376,14 @@ for (var i in myqSavedSettings) {
 						openBtn.Render = Enums.CAPIControlType.Button;
 						openBtn.Status = "Open";
 						openBtn.Value = (int) MyQDoorState.Open;
+						openBtn.ControlUse = ePairControlUse._DoorUnLock;
 
 						VSVGPairs.VSPair closeBtn = new VSVGPairs.VSPair(ePairStatusControl.Control);
 						closeBtn.PairType = VSVGPairs.VSVGPairType.SingleValue;
 						closeBtn.Render = Enums.CAPIControlType.Button;
 						closeBtn.Status = "Close";
 						closeBtn.Value = (int) MyQDoorState.Closed;
+						closeBtn.ControlUse = ePairControlUse._DoorLock;
 						
 						VSVGPairs.VSPair closedStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
 						closedStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
@@ -426,6 +428,7 @@ for (var i in myqSavedSettings) {
 						}
 						
 						hsDev.MISC_Set(hs, Enums.dvMISC.SHOW_VALUES);
+						hsDev.MISC_Set(hs, Enums.dvMISC.AUTO_VOICE_COMMAND);
 					}
 				}
 
