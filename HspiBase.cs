@@ -133,7 +133,7 @@ namespace HSPI_LiftMasterMyQ
 		/// </summary>
 		/// <param name="eventType">The type of the event that happened</param>
 		/// <param name="parameters">Parameters for the event</param>
-		public virtual void HSEvent(Enums.HSEvent eventType, object[] parameters) {}
+		public virtual void HSEvent(HomeSeerAPI.Enums.HSEvent eventType, object[] parameters) {}
 
 		/// <summary>
 		/// Called when the plugin initializes. Here you should init communication and threads and whatnot.
@@ -453,10 +453,10 @@ namespace HSPI_LiftMasterMyQ
 		/// <param name="data">Posted data</param>
 		/// <param name="user">Name of the logged in user</param>
 		/// <param name="userRights">Rights of the logged in user</param>
-		/// <returns>Enums.ConfigDevicePostReturn</returns>
-		public virtual Enums.ConfigDevicePostReturn
+		/// <returns>HomeSeerAPI.Enums.ConfigDevicePostReturn</returns>
+		public virtual HomeSeerAPI.Enums.ConfigDevicePostReturn
 			ConfigDevicePost(int @ref, string data, string user, int userRights) {
-			return Enums.ConfigDevicePostReturn.DoneAndCancel;
+			return HomeSeerAPI.Enums.ConfigDevicePostReturn.DoneAndCancel;
 		}
 
 		/// <summary>

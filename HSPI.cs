@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Text;
 using System.Timers;
 using System.Web;
 using System.Web.Script.Serialization;
 using HomeSeerAPI;
+using HSPI_LiftMasterMyQ.DataContainers;
+using HSPI_LiftMasterMyQ.Enums;
 using Scheduler;
 using Scheduler.Classes;
 
@@ -20,10 +23,13 @@ namespace HSPI_LiftMasterMyQ
 		private readonly Dictionary<string, int> serialToRef;
 		private readonly Dictionary<int, int> refToMyqId;
 		private readonly Dictionary<int, bool> refLastOnlineStatus;
+
+		private const string DEFAULT_POLL_INTERVAL = "10000";
 		
 		public HSPI() {
 			Name = "LiftMaster MyQ";
 			PluginIsFree = true;
+			PluginActionCount = 1;
 			
 			serialToRef = new Dictionary<string, int>();
 			refToMyqId = new Dictionary<int, int>();
@@ -57,7 +63,7 @@ namespace HSPI_LiftMasterMyQ
 				});
 			}
 			
-			pollTimer = new Timer(double.Parse(hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)));
+			pollTimer = new Timer(double.Parse(hs.GetINISetting("Options", "myq_poll_frequency", DEFAULT_POLL_INTERVAL, IniFilename)));
 			pollTimer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
 			pollTimer.AutoReset = false;
 			// don't enable just yet
@@ -82,6 +88,192 @@ namespace HSPI_LiftMasterMyQ
 					timer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
 					timer.Start();
 				});
+			}
+		}
+
+		public override string get_ActionName(int actionNumber) {
+			switch (actionNumber) {
+				case 1:
+					return Name + " Actions";
+				
+				default:
+					return "UNKNOWN ACTION";
+			}
+		}
+
+		public override string ActionBuildUI(string unique, IPlugInAPI.strTrigActInfo actInfo) {
+			if (actInfo.TANumber != 1) {
+				return "Bad action number " + actInfo.TANumber + "," + actInfo.SubTANumber;
+			}
+			
+			StringBuilder builder = new StringBuilder();
+			SubAction selectedSubAction = (SubAction) actInfo.SubTANumber;
+
+			// Sub-action dropdown
+			clsJQuery.jqDropList actionSelector = new clsJQuery.jqDropList("SubAction" + unique, "events", true);
+			foreach (SubAction subAction in Enum.GetValues(typeof(SubAction))) {
+				string actName = Helpers.AddSpacesToCamelCase(Enum.GetName(typeof(SubAction), subAction));
+				if (actName == "Invalid") {
+					actName = "(Choose A " + Name + " Action)";
+				}
+
+				actionSelector.AddItem(actName, ((int) subAction).ToString(), selectedSubAction == subAction);
+			}
+
+			builder.Append(actionSelector.Build());
+
+			if (selectedSubAction == SubAction.SetPollingInterval) {
+				SetPollTimeData eventData = SetPollTimeData.Unserialize(actInfo.DataIn);
+
+				if (ActionAdvancedMode) {
+					clsJQuery.jqTextBox textBox = new clsJQuery.jqTextBox(
+						"PollingInterval_txt" + unique,
+						"number",
+						eventData.PollIntervalMilliseconds == 0 ? "" : eventData.PollIntervalMilliseconds.ToString(),
+						"events",
+						30,
+						true
+					);
+					textBox.dialogCaption = "Polling Interval";
+					textBox.promptText = "Enter the new polling interval in milliseconds.";
+					builder.Append("<br />Polling Interval (ms): ");
+					builder.Append(textBox.Build());
+				} else {
+					clsJQuery.jqTimeSpanPicker timePicker =
+						new clsJQuery.jqTimeSpanPicker("PollingInterval" + unique, "Polling Interval:", "events", true);
+					timePicker.showDays = false;
+					timePicker.defaultTimeSpan = TimeSpan.FromMilliseconds(eventData.PollIntervalMilliseconds);
+					builder.Append(timePicker.Build());
+				}
+			}
+
+			return builder.ToString();
+		}
+
+		public override IPlugInAPI.strMultiReturn ActionProcessPostUI(NameValueCollection postData,
+			IPlugInAPI.strTrigActInfo actInfo) {
+
+			if (actInfo.TANumber != 1) {
+				throw new Exception("Unknown action number " + actInfo.TANumber);
+			}
+			
+			IPlugInAPI.strMultiReturn output = new IPlugInAPI.strMultiReturn();
+			output.TrigActInfo.TANumber = actInfo.TANumber;
+			output.TrigActInfo.SubTANumber = actInfo.SubTANumber;
+			output.DataOut = actInfo.DataIn;
+
+			SubAction selectedSubAction = (SubAction) actInfo.SubTANumber;
+
+			foreach (string key in postData.AllKeys) {
+				string[] parts = key.Split('_');
+				if (parts.Length > 1) {
+					postData.Add(parts[0], postData.Get(key));
+				}
+			}
+			
+			// Are we changing the sub action?
+			SubAction newSubAction = (SubAction) int.Parse(postData.Get("SubAction"));
+			if (newSubAction != selectedSubAction) {
+				output.TrigActInfo.SubTANumber = (int) newSubAction;
+				// We don't need to clear the action data since we only have one action data class right now.
+				// If we add another one, then we might need to.
+				return output;
+			}
+
+			switch ((SubAction) actInfo.SubTANumber) {
+				case SubAction.SetPollingInterval:
+					SetPollTimeData actData = SetPollTimeData.Unserialize(actInfo.DataIn);
+
+					string temp;
+					if ((temp = postData.Get("PollingInterval")) != null) {
+						uint? newPollInterval = Helpers.DecodeTimeSpanToMilliseconds(temp);
+						if (newPollInterval != null && newPollInterval >= 1000) {
+							actData.PollIntervalMilliseconds = (uint) newPollInterval;							
+						}
+					}
+
+					output.DataOut = actData.Serialize();
+					break;
+			}
+
+			return output;
+		}
+
+		public override bool ActionConfigured(IPlugInAPI.strTrigActInfo actInfo) {
+			switch ((SubAction) actInfo.SubTANumber) {
+				case SubAction.PollNow:
+				case SubAction.ResetPollingIntervalToConfiguredValue:
+					return true;
+				
+				case SubAction.SetPollingInterval:
+					SetPollTimeData actData = SetPollTimeData.Unserialize(actInfo.DataIn);
+					return actData.PollIntervalMilliseconds >= 1000;
+				
+				default:
+					return false;
+			}
+		}
+
+		public override string ActionFormatUI(IPlugInAPI.strTrigActInfo actInfo) {
+			if (actInfo.TANumber != 1) {
+				return "Unknown action number " + actInfo.TANumber;
+			}
+
+			StringBuilder builder = new StringBuilder();
+
+			switch ((SubAction) actInfo.SubTANumber) {
+				case SubAction.PollNow:
+					builder.Append("<span class=\"event_Txt_Selection\">Poll MyQ device status</span> immediately.");
+					break;
+				
+				case SubAction.ResetPollingIntervalToConfiguredValue:
+					builder.Append("<span class=\"event_Txt_Selection\">Reset MyQ poll interval</span> to the value configured on the plugin settings page (");
+					builder.Append("<span class=\"event_Txt_Option\">");
+					builder.Append(double.Parse(hs.GetINISetting("Options", "myq_poll_frequency", DEFAULT_POLL_INTERVAL, IniFilename)) / 1000.0);
+					builder.Append(" seconds</span>).");
+					break;
+				
+				case SubAction.SetPollingInterval:
+					SetPollTimeData actData = SetPollTimeData.Unserialize(actInfo.DataIn);
+					builder.Append(
+						"<span class=\"event_Txt_Selection\">Set MyQ poll interval</span> to <span class=\"event_Txt_Option\">");
+					builder.Append(actData.PollIntervalMilliseconds / 1000.0);
+					builder.Append(" seconds</span>.");
+					break;
+				
+				default:
+					return "Unknown sub-action " + actInfo.SubTANumber;
+			}
+
+			return builder.ToString();
+		}
+
+		public override bool HandleAction(IPlugInAPI.strTrigActInfo actInfo) {
+			if (actInfo.TANumber != 1) {
+				Program.WriteLog(LogType.Error,
+					"Bad action number " + actInfo.TANumber + " for event " + actInfo.evRef);
+				return false;
+			}
+
+			switch ((SubAction) actInfo.SubTANumber) {
+				case SubAction.PollNow:
+					syncDevices();
+					return true;
+				
+				case SubAction.ResetPollingIntervalToConfiguredValue:
+					pollTimer.Interval = double.Parse(hs.GetINISetting("Options", "myq_poll_frequency", DEFAULT_POLL_INTERVAL, IniFilename));
+					Program.WriteLog(LogType.Info, "Resetting poll interval to " + pollTimer.Interval);
+					return true;
+				
+				case SubAction.SetPollingInterval:
+					SetPollTimeData actData = SetPollTimeData.Unserialize(actInfo.DataIn);
+					Program.WriteLog(LogType.Info, "Setting poll interval to " + actData.PollIntervalMilliseconds);
+					pollTimer.Interval = actData.PollIntervalMilliseconds;
+					return true;
+				
+				default:
+					Program.WriteLog(LogType.Error, "Bad sub-action number " + actInfo.SubTANumber + " for event " + actInfo.evRef);
+					return false;
 			}
 		}
 
@@ -171,7 +363,7 @@ namespace HSPI_LiftMasterMyQ
 			var savedSettings = new Dictionary<string, string> {
 				{"myq_username", hs.GetINISetting("Authentication", "myq_username", "", IniFilename)},
 				{"myq_password", getMyQPassword(true)},
-				{"myq_poll_frequency", hs.GetINISetting("Options", "myq_poll_frequency", "10000", IniFilename)},
+				{"myq_poll_frequency", hs.GetINISetting("Options", "myq_poll_frequency", DEFAULT_POLL_INTERVAL, IniFilename)},
 				{"myq_use_craftsman", hs.GetINISetting("Options", "myq_use_craftsman", "0", IniFilename)},
 			};
 			
@@ -361,13 +553,13 @@ for (var i in myqSavedSettings) {
 						// Create buttons
 						VSVGPairs.VSPair openBtn = new VSVGPairs.VSPair(ePairStatusControl.Both);
 						openBtn.PairType = VSVGPairs.VSVGPairType.SingleValue;
-						openBtn.Render = Enums.CAPIControlType.Button;
+						openBtn.Render = HomeSeerAPI.Enums.CAPIControlType.Button;
 						openBtn.Status = "Open";
 						openBtn.Value = (int) MyQDoorState.Open;
 
 						VSVGPairs.VSPair closeBtn = new VSVGPairs.VSPair(ePairStatusControl.Control);
 						closeBtn.PairType = VSVGPairs.VSVGPairType.SingleValue;
-						closeBtn.Render = Enums.CAPIControlType.Button;
+						closeBtn.Render = HomeSeerAPI.Enums.CAPIControlType.Button;
 						closeBtn.Status = "Close";
 						closeBtn.Value = (int) MyQDoorState.Closed;
 						
@@ -413,7 +605,7 @@ for (var i in myqSavedSettings) {
 							});
 						}
 						
-						hsDev.MISC_Set(hs, Enums.dvMISC.SHOW_VALUES);
+						hsDev.MISC_Set(hs, HomeSeerAPI.Enums.dvMISC.SHOW_VALUES);
 					}
 				}
 
