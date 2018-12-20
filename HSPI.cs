@@ -620,7 +620,7 @@ for (var i in myqSavedSettings) {
 						}
 						
 						hsDev.MISC_Set(hs, HomeSeerAPI.Enums.dvMISC.SHOW_VALUES);
-						hsDev.MISC_Set(hs, Enums.dvMISC.AUTO_VOICE_COMMAND);
+						hsDev.MISC_Set(hs, HomeSeerAPI.Enums.dvMISC.AUTO_VOICE_COMMAND);
 					}
 				}
 
