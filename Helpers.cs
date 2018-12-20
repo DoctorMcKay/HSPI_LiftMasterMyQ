@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 
 namespace HSPI_LiftMasterMyQ
@@ -26,7 +27,7 @@ namespace HSPI_LiftMasterMyQ
 			if (parts.Length < 4) {
 				return null;
 			}
-			
+
 			uint days = uint.Parse(parts[0]);
 			uint hours = uint.Parse(parts[1]);
 			uint minutes = uint.Parse(parts[2]);
@@ -36,6 +37,12 @@ namespace HSPI_LiftMasterMyQ
 			seconds += hours * 60 * 60;
 			seconds += days * 60 * 60 * 24;
 			return seconds * 1000;
+		}
+
+		/// <summary> Get the current Unix time in seconds. </summary>
+		/// <returns>long</returns>
+		public static long GetUnixTimeSeconds() {
+			return (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 		}
 	}
 }

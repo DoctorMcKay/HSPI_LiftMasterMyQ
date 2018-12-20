@@ -67,6 +67,17 @@ namespace HSPI_LiftMasterMyQ
 			pollTimer.Elapsed += (Object source, ElapsedEventArgs e) => { syncDevices(); };
 			pollTimer.AutoReset = false;
 			// don't enable just yet
+			
+			Timer sanityCheck = new Timer(60000) {AutoReset = true};
+			sanityCheck.Elapsed += (object src, ElapsedEventArgs a) => {
+				long lastUpdatedTime = Helpers.GetUnixTimeSeconds() - myqClient.DevicesLastUpdated;
+				if (lastUpdatedTime > 60) {
+					// Devices last updated 60 seconds ago, so something broke.
+					Program.WriteLog(LogType.Warn, "MyQ devices last updated " + lastUpdatedTime + " seconds ago; running poll now");
+					syncDevices();
+				}
+			};
+			sanityCheck.Start();
 
 			return "";
 		}
@@ -516,6 +527,7 @@ for (var i in myqSavedSettings) {
 		private async void syncDevices() {
 			Program.WriteLog(LogType.Verbose, "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
+			pollTimer.Stop();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
 				// Something went wrong!
@@ -556,12 +568,14 @@ for (var i in myqSavedSettings) {
 						openBtn.Render = HomeSeerAPI.Enums.CAPIControlType.Button;
 						openBtn.Status = "Open";
 						openBtn.Value = (int) MyQDoorState.Open;
+						openBtn.ControlUse = ePairControlUse._DoorUnLock;
 
 						VSVGPairs.VSPair closeBtn = new VSVGPairs.VSPair(ePairStatusControl.Control);
 						closeBtn.PairType = VSVGPairs.VSVGPairType.SingleValue;
 						closeBtn.Render = HomeSeerAPI.Enums.CAPIControlType.Button;
 						closeBtn.Status = "Close";
 						closeBtn.Value = (int) MyQDoorState.Closed;
+						closeBtn.ControlUse = ePairControlUse._DoorLock;
 						
 						VSVGPairs.VSPair closedStatus = new VSVGPairs.VSPair(ePairStatusControl.Status);
 						closedStatus.PairType = VSVGPairs.VSVGPairType.SingleValue;
@@ -606,6 +620,7 @@ for (var i in myqSavedSettings) {
 						}
 						
 						hsDev.MISC_Set(hs, HomeSeerAPI.Enums.dvMISC.SHOW_VALUES);
+						hsDev.MISC_Set(hs, Enums.dvMISC.AUTO_VOICE_COMMAND);
 					}
 				}
 
