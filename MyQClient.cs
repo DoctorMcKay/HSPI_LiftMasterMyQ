@@ -180,7 +180,7 @@ namespace HSPI_LiftMasterMyQ
 
 		public async Task<string> getDevices() {
 			Program.WriteLog(LogType.Verbose, "Requesting list of devices from MyQ");
-			HttpResponseMessage res = await httpClient.GetAsync("/api/v4/userdevicedetails/get");
+			HttpResponseMessage res = await httpClient.GetAsync("/api/v4/UserDeviceDetails/Get");
 			if (!res.IsSuccessStatusCode) {
 				res.Dispose();
 				ClientStatus = STATUS_MYQ_DOWN;
@@ -270,7 +270,7 @@ namespace HSPI_LiftMasterMyQ
 			// I'm tired so let's just do this
 			var json = "{\"MyQDeviceId\":" + myqId + ",\"AttributeName\":\"desireddoorstate\",\"AttributeValue\":\"" +
 			           attribValue + "\"}";
-			var req = new HttpRequestMessage(HttpMethod.Put, "/api/v4/deviceattribute/putdeviceattribute");
+			var req = new HttpRequestMessage(HttpMethod.Put, "/api/v4/DeviceAttribute/PutDeviceAttribute");
 			req.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
 			Program.WriteLog(LogType.Info, "Writing door state " + attribValue + " for door id " + myqId);
