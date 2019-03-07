@@ -48,7 +48,8 @@ namespace HSPI_LiftMasterMyQ
 
 		private int loginThrottleAttempts = 0;
 		private Timer loginThrottle;
-
+		private long lastActualLoginAttempt = 0;
+		
 		public MyQClient(MyQMake make = MyQMake.LiftMaster) {
 			httpClient = new HttpClient();
 			httpClient.DefaultRequestHeaders.Add("User-Agent",
@@ -89,6 +90,19 @@ namespace HSPI_LiftMasterMyQ
 
 			Program.WriteLog(LogType.Verbose, "Attempting to login to MyQ");
 			
+			// Somehow I have a bug somewhere that is preventing login throttles from being reset. Force-reset it if it's been a long time.
+			if (loginThrottleAttempts >= 3 && Helpers.GetUnixTimeSeconds() - lastActualLoginAttempt >= (1000 * 60 * 10)) {
+				// It's been 10 minutes since we actually tried to login. Whoops.
+				Program.WriteLog(
+					LogType.Warn,
+					string.Format(
+						"Resetting login throttle attempts ({0}) to 0 because it's been {1} ms since our last actual login attempt.",
+						loginThrottleAttempts, Helpers.GetUnixTimeSeconds() - lastActualLoginAttempt
+					)
+				);
+				loginThrottleAttempts = 0;
+			}
+			
 			if (++loginThrottleAttempts >= 3 || retryCount > 3) {
 				LoginThrottledAt = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
 				ClientStatus = STATUS_UNAUTHORIZED;
@@ -120,6 +134,7 @@ namespace HSPI_LiftMasterMyQ
 			dynamic content = null;
 			try {
 				HttpResponseMessage res = await httpClient.SendAsync(req);
+				lastActualLoginAttempt = Helpers.GetUnixTimeSeconds();
 				if (!res.IsSuccessStatusCode) {
 					res.Dispose();
 					ClientStatus = STATUS_MYQ_DOWN;
