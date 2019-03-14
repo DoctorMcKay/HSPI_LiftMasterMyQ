@@ -516,6 +516,14 @@ for (var i in myqSavedSettings) {
 							: myqClient.ClientStatusString
 					};
 				
+				case MyQClient.STATUS_THROTTLED:
+					return new IPlugInAPI.strInterfaceStatus {
+						intStatus = IPlugInAPI.enumInterfaceStatus.CRITICAL,
+						sStatus = myqClient.ClientStatusString.Length == 0
+							? "Login attempts throttled"
+							: myqClient.ClientStatusString
+					};
+				
 				default:
 					return new IPlugInAPI.strInterfaceStatus {
 						intStatus = IPlugInAPI.enumInterfaceStatus.INFO,

@@ -14,18 +14,19 @@ namespace HSPI_LiftMasterMyQ
 		public const int STATUS_OK = 0;
 		public const int STATUS_MYQ_DOWN = 1;
 		public const int STATUS_UNAUTHORIZED = 2;
+		public const int STATUS_THROTTLED = 3;
+		
 		public int ClientStatus { get; private set; }
 
 		private string _clientStatusString;
+
 		public string ClientStatusString {
-			get { return _clientStatusString; }
+			get => _clientStatusString;
 			private set {
 				_clientStatusString = value;
 				Program.WriteLog(LogType.Verbose, "ClientStatusString changed to: " + value);
 			}
 		}
-
-		public long LoginThrottledAt { get; private set; }
 
 		public List<MyQDevice> Devices;
 		public long DevicesLastUpdated;
@@ -47,7 +48,7 @@ namespace HSPI_LiftMasterMyQ
 		private string authToken = null;
 
 		private int loginThrottleAttempts = 0;
-		private Timer loginThrottle;
+		private readonly Timer loginThrottleResetTimer;
 		private long lastActualLoginAttempt = 0;
 		
 		public MyQClient(MyQMake make = MyQMake.LiftMaster) {
@@ -67,8 +68,8 @@ namespace HSPI_LiftMasterMyQ
 			
 			ClientStatus = STATUS_OK;
 
-			loginThrottle = new Timer(2000) {AutoReset = false};
-			loginThrottle.Elapsed += (object src, ElapsedEventArgs a) => {
+			loginThrottleResetTimer = new Timer(10000) {AutoReset = false};
+			loginThrottleResetTimer.Elapsed += (object src, ElapsedEventArgs a) => {
 				loginThrottleAttempts = 0;
 				Program.WriteLog(LogType.Verbose, "Resetting login throttle attempts");
 			};
@@ -85,13 +86,13 @@ namespace HSPI_LiftMasterMyQ
 		public async Task<string> Login(string username, string password, bool overrideThrottle = false, int retryCount = 0) {
 			if (overrideThrottle) {
 				loginThrottleAttempts = 0;
-				loginThrottle.Stop();
+				loginThrottleResetTimer.Stop();
 			}
 
 			Program.WriteLog(LogType.Verbose, "Attempting to login to MyQ");
 			
 			// Somehow I have a bug somewhere that is preventing login throttles from being reset. Force-reset it if it's been a long time.
-			if (loginThrottleAttempts >= 3 && Helpers.GetUnixTimeSeconds() - lastActualLoginAttempt >= (1000 * 60 * 10)) {
+			/*if (loginThrottleAttempts >= 3 && Helpers.GetUnixTimeSeconds() - lastActualLoginAttempt >= (1000 * 60 * 10)) {
 				// It's been 10 minutes since we actually tried to login. Whoops.
 				Program.WriteLog(
 					LogType.Warn,
@@ -101,23 +102,31 @@ namespace HSPI_LiftMasterMyQ
 					)
 				);
 				loginThrottleAttempts = 0;
-			}
-			
+			}*/
+						
 			if (++loginThrottleAttempts >= 3 || retryCount > 3) {
-				LoginThrottledAt = (long) (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0)).TotalSeconds;
-				ClientStatus = STATUS_UNAUTHORIZED;
+				bool wasAlreadyThrottled = ClientStatus == STATUS_THROTTLED;
+				ClientStatus = STATUS_THROTTLED;
 				ClientStatusString = "Login attempts throttled";
+				
+				Program.WriteLog(LogType.Warn, string.Format(
+					"Throttled login attempts due to {0} ({1} attempts)",
+					loginThrottleAttempts >= 3 ? "login attempts" : "retry count",
+					loginThrottleAttempts >= 3 ? loginThrottleAttempts : retryCount
+				));
 
 				Timer retry = new Timer(30000) {AutoReset = false};
-#pragma warning disable 4014
-				retry.Elapsed += (object src, ElapsedEventArgs args) => { Login(username, password); };
-#pragma warning restore 4014
+				retry.Elapsed += async (object src, ElapsedEventArgs args) => { await Login(username, password); };
 				retry.Start();
+
+				if (!wasAlreadyThrottled) {
+					loginThrottleResetTimer.Start();
+				}
 
 				return ClientStatusString;
 			}
 			
-			loginThrottle.Start();
+			loginThrottleResetTimer.Start();
 			
 			this.username = username;
 			this.password = password;
