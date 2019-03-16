@@ -46,6 +46,7 @@ namespace HSPI_LiftMasterMyQ
 		private string username;
 		private string password;
 		private string authToken = null;
+		private bool attemptingLogin = false;
 
 		private int loginThrottleAttempts = 0;
 		private readonly Timer loginThrottleResetTimer;
@@ -84,6 +85,12 @@ namespace HSPI_LiftMasterMyQ
 		/// <param name="retryCount"></param>
 		/// <returns>string</returns>
 		public async Task<string> Login(string username, string password, bool overrideThrottle = false, int retryCount = 0) {
+			if (attemptingLogin) {
+				Program.WriteLog(LogType.Debug, "Suppressing login attempt because we're already attempting to login");
+			}
+			
+			attemptingLogin = true;
+			
 			if (overrideThrottle) {
 				loginThrottleAttempts = 0;
 				loginThrottleResetTimer.Stop();
@@ -110,9 +117,10 @@ namespace HSPI_LiftMasterMyQ
 				ClientStatusString = "Login attempts throttled";
 				
 				Program.WriteLog(LogType.Warn, string.Format(
-					"Throttled login attempts due to {0} ({1} attempts)",
+					"Throttled login attempts due to {0} ({1} attempts){2}",
 					loginThrottleAttempts >= 3 ? "login attempts" : "retry count",
-					loginThrottleAttempts >= 3 ? loginThrottleAttempts : retryCount
+					loginThrottleAttempts >= 3 ? loginThrottleAttempts : retryCount,
+					wasAlreadyThrottled ? " [already throttled]" : ""
 				));
 
 				Timer retry = new Timer(30000) {AutoReset = false};
@@ -145,6 +153,7 @@ namespace HSPI_LiftMasterMyQ
 				HttpResponseMessage res = await httpClient.SendAsync(req);
 				lastActualLoginAttempt = Helpers.GetUnixTimeSeconds();
 				if (!res.IsSuccessStatusCode) {
+					attemptingLogin = false;
 					res.Dispose();
 					ClientStatus = STATUS_MYQ_DOWN;
 					return ClientStatusString = "Got failure response code from MyQ: " + res.StatusCode;
@@ -175,14 +184,17 @@ namespace HSPI_LiftMasterMyQ
 				int returnCode = int.Parse(content["ReturnCode"]);
 				switch (returnCode) {
 					case 203:
+						attemptingLogin = false;
 						ClientStatus = STATUS_UNAUTHORIZED;
 						return ClientStatusString = "MyQ username and/or password were incorrect.";
 
 					case 205:
+						attemptingLogin = false;
 						ClientStatus = STATUS_UNAUTHORIZED;
 						return ClientStatusString = "MyQ username and/or password were incorrect. 1 attempt left before lockout.";
 
 					case 207:
+						attemptingLogin = false;
 						ClientStatus = STATUS_UNAUTHORIZED;
 						return ClientStatusString = "MyQ account is locked out. Please reset password.";
 				}
@@ -199,6 +211,7 @@ namespace HSPI_LiftMasterMyQ
 				return "";
 			}
 			catch (Exception ex) {
+				attemptingLogin = false;
 				ClientStatus = STATUS_MYQ_DOWN;
 				return ClientStatusString = "MyQ service is temporarily unavailable. " + ex.Message;
 			}
@@ -238,14 +251,9 @@ namespace HSPI_LiftMasterMyQ
 						catch (Exception) {
 							// silently swallow
 						}
-						
-						var errorMsg = await Login(username, password);
-						if (errorMsg != "") {
-							return errorMsg;
-						}
-						else {
-							return await getDevices(); // try again!
-						}
+
+						Login(username, password);
+						return "MyQ error: " + content["ErrorMessage"];
 					
 					case 216:
 						// Unauthorized
