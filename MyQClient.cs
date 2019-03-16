@@ -252,9 +252,13 @@ namespace HSPI_LiftMasterMyQ
 							// silently swallow
 						}
 
-						Login(username, password);
-						return "MyQ error: " + content["ErrorMessage"];
-					
+						string loginError = await Login(username, password);
+						if (loginError == "") {
+							return await getDevices();
+						} else {
+							return "MyQ error: " + content["ErrorMessage"];
+						}
+
 					case 216:
 						// Unauthorized
 						ClientStatus = STATUS_UNAUTHORIZED;

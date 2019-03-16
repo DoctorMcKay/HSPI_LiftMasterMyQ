@@ -24,6 +24,8 @@ namespace HSPI_LiftMasterMyQ
 		private readonly Dictionary<int, int> refToMyqId;
 		private readonly Dictionary<int, bool> refLastOnlineStatus;
 
+		private bool currentlySyncingDevices = false;
+
 		private const string DEFAULT_POLL_INTERVAL = "10000";
 		
 		public HSPI() {
@@ -533,8 +535,15 @@ for (var i in myqSavedSettings) {
 		}
 
 		private async void syncDevices() {
+			if (currentlySyncingDevices) {
+				Program.WriteLog(LogType.Debug, "Suppressing MyQ sync because we're currently syncing devices");
+			}
+
+			currentlySyncingDevices = true;
 			Program.WriteLog(LogType.Verbose, "Syncing MyQ devices");
 			var errorMsg = await myqClient.getDevices();
+			currentlySyncingDevices = false;
+			
 			pollTimer.Stop();
 			pollTimer.Start(); // enqueue the next poll
 			if (errorMsg != "") {
