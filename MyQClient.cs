@@ -87,6 +87,7 @@ namespace HSPI_LiftMasterMyQ
 		public async Task<string> Login(string username, string password, bool overrideThrottle = false, int retryCount = 0) {
 			if (attemptingLogin) {
 				Program.WriteLog(LogType.Debug, "Suppressing login attempt because we're already attempting to login");
+				return "Login attempt suppressed";
 			}
 			
 			attemptingLogin = true;
