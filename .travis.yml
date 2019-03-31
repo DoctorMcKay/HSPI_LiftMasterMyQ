@@ -1,0 +1,15 @@
+language: csharp
+solution: HSPI_LiftMasterMyQ.sln
+script:
+  - msbuild /p:Configuration=Debug HSPI_LiftMasterMyQ.sln
+  - msbuild /p:Configuration=Release HSPI_LiftMasterMyQ.sln
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  keep_history: true
+  on:
+    branch: master
+  target_branch: gh-pages
+  deployment_file: true
+  local_dir: /home/travis/build/DoctorMcKay/HSPI_LiftMasterMyQ
