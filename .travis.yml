@@ -1,0 +1,4 @@
+language: csharp
+solution: HSPI_LiftMasterMyQ.sln
+script:
+  - msbuild /p:Configuration=Debug HSPI_LiftMasterMyQ.sln
