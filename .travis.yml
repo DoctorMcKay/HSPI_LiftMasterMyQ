@@ -12,4 +12,4 @@ deploy:
     branch: master
   target_branch: gh-pages
   deployment_file: true
-  local_dir: /home/travis/build/DoctorMcKay/HSPI_LiftMasterMyQ
+  local_dir: bin
