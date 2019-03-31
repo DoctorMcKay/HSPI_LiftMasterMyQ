@@ -33,14 +33,17 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="HomeSeerAPI, Version=1.0.2.1, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\HomeSeerAPI.dll</HintPath>
+      <HintPath>packages\homeseer.1.2.8\lib\net45\HomeSeerAPI.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="HSCF, Version=1.0.0.2, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\HSCF.dll</HintPath>
+      <HintPath>packages\homeseer.1.2.8\lib\net45\HSCF.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Scheduler, Version=3.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\Scheduler.dll</HintPath>
+      <HintPath>packages\homeseer.1.2.8\lib\net45\Scheduler.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Net.Http" />
@@ -64,6 +67,9 @@
   <ItemGroup>
     <Content Include=".gitignore" />
     <Content Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
