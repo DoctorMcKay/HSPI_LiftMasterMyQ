@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -64,6 +65,8 @@ namespace HSPI_LiftMasterMyQ
 				httpClient.BaseAddress = new Uri(BASE_URL_CRAFTSMAN);
 				httpClient.DefaultRequestHeaders.Add("MyQApplicationId", APP_ID_CRAFTSMAN);
 			}
+
+			ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
 			jsonSerializer = new JavaScriptSerializer();
 			
